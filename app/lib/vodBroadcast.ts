@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'child_process';
+import { existsSync } from 'fs';
 import fsp from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -36,8 +37,14 @@ const REAP_INTERVAL_MS = 5 * 1000;
 const SEGMENT_DURATION = 4;
 /** A device that stops reporting for longer than this no longer holds the broadcast. */
 const CONSUMER_TTL_MS = 15 * 1000;
-/** Between spawning ffmpeg and the first played frame there is no liveness signal yet. */
-const STARTUP_GRACE_MS = 30 * 1000;
+/**
+ * Between spawning ffmpeg and the first played frame there is no liveness signal yet.
+ * Generous on purpose: the provider can take 30s+ to open a VOD (and a failed open is retried).
+ */
+const STARTUP_GRACE_MS = 60 * 1000;
+/** The provider balances VOD across backend nodes and some answer 5XX; a new open lands elsewhere. */
+const MAX_OPEN_ATTEMPTS = 3;
+const OPEN_RETRY_DELAY_MS = 1000;
 /** ffmpeg is stuck if it has not written a segment for ~3 segment durations. */
 const STALL_TIMEOUT_MS = 3 * SEGMENT_DURATION * 1000;
 /** After a forced stop, refuse to respawn for this long (a retrying player would resurrect it). */
@@ -57,6 +64,10 @@ interface Broadcast {
     /** Devices reporting active playback, by deviceId. */
     consumers: Map<string, Consumer>;
     startedAt: number;
+    /** What ffmpeg was launched with, kept so a failed open can be retried as-is. */
+    upstreamUrl: string;
+    startSeconds: number;
+    openAttempts: number;
     alive: boolean;
     /**
      * Bumped on every restart (seek). A restart resets the HLS timeline — segments and
@@ -247,6 +258,22 @@ function trackProc(b: Broadcast, proc: ChildProcess) {
     proc.on('exit', (code) => {
         if (b.proc !== proc) return; // replaced by a restart
         console.log(`[VodBroadcast ${b.key}] ffmpeg saiu (code ${code})`);
+
+        // Died before writing anything: the upstream open failed (5XX from one provider
+        // node). Retrying reaches another node; once segments exist, a restart would
+        // rewind the viewers, so that case stays a plain end.
+        const neverProduced = !existsSync(path.join(b.dir, 'seg_00000.m4s'));
+        if (code !== null && code !== 0 && neverProduced && b.alive && b.openAttempts < MAX_OPEN_ATTEMPTS) {
+            b.openAttempts += 1;
+            console.log(`[VodBroadcast ${b.key}] tentativa ${b.openAttempts + 1}/${MAX_OPEN_ATTEMPTS + 1} de abrir o arquivo`);
+            setTimeout(() => {
+                if (!b.alive || b.proc !== proc) return; // stopped or restarted meanwhile
+                const retry = spawnFfmpeg(b.key, b.dir, b.upstreamUrl, b.startSeconds);
+                b.proc = retry;
+                trackProc(b, retry);
+            }, OPEN_RETRY_DELAY_MS);
+            return;
+        }
         b.alive = false;
     });
 }
@@ -311,6 +338,9 @@ export async function ensureVodBroadcast(
             proc,
             consumers: new Map(),
             startedAt: Date.now(),
+            upstreamUrl,
+            startSeconds,
+            openAttempts: 0,
             alive: true,
             generation: 1,
         };
@@ -369,6 +399,9 @@ export async function restartVodBroadcast(
     b.proc = proc;
     b.dir = dir;
     b.startedAt = Date.now();
+    b.upstreamUrl = upstreamUrl;
+    b.startSeconds = startSeconds;
+    b.openAttempts = 0;
     b.generation += 1;
     trackProc(b, proc);
 
@@ -444,7 +477,7 @@ export function getBroadcastGeneration(key: string): number {
  * segment duration in real time to produce the first). Aborts early if
  * ffmpeg dies (incompatible codec, provider refused, etc.).
  */
-export async function waitForPlaylist(key: string, dir: string, timeoutMs = 20000): Promise<string | null> {
+export async function waitForPlaylist(key: string, dir: string, timeoutMs = 45000): Promise<string | null> {
     const playlistPath = path.join(dir, 'index.m3u8');
     const deadline = Date.now() + timeoutMs;
 
