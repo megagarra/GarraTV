@@ -279,6 +279,7 @@ export default function HeroSection({ type = 'all' }: HeroSectionProps) {
                         onClick={() => setCurrentIndex(idx)}
                         onFocus={() => handleIndicatorFocus(idx)}
                         data-focusable="true"
+                        data-autofocus={idx === currentIndex ? 'true' : undefined}
                         tabIndex={0}
                         className="focus-flat px-2 py-3 flex items-center justify-center"
                         aria-label={t('hero.goToSlide', { n: idx + 1 })}
