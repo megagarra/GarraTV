@@ -19,7 +19,7 @@ const YEAR_PATTERN = /\b(19|20)\d{2}\b/;
 // seconds as a numeric string, others an ISO date. Normalizing both to epoch
 // ms fixes the split behavior across live/series (compared the string as a
 // number) and movies (used `Date`) that produced wrong "recently added" sorts.
-function parseAddedAt(value: string | undefined): number {
+export function parseAddedAt(value: string | undefined): number {
     if (!value) return 0;
 
     if (/^\d+$/.test(value)) {

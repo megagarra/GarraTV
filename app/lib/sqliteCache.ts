@@ -502,6 +502,24 @@ export function searchStreams(query: string, type?: ContentType, limit = 300): C
     return rows.map(rowToStream);
 }
 
+/**
+ * Just the date columns of every title of a type. `added`/`last_modified` are
+ * free-form text from two provider generations (see catalogItem.ts), so the
+ * "is it recent" decision happens in JS; this keeps that scan from dragging the
+ * plot/cast blobs of a 20k-title catalog through memory.
+ */
+export function getStreamDates(type: ContentType): { id: string; added?: string; last_modified?: string }[] {
+    const rows = getConnection()
+        .prepare('SELECT id, added, last_modified FROM streams WHERE type = ?')
+        .all(type) as { id: string; added: string | null; last_modified: string | null }[];
+
+    return rows.map(row => ({
+        id: row.id,
+        added: row.added ?? undefined,
+        last_modified: row.last_modified ?? undefined,
+    }));
+}
+
 export function getStreamCount(type?: ContentType): number {
     const row = type
         ? getConnection().prepare('SELECT COUNT(*) AS total FROM streams WHERE type = ?').get(type) as { total: number }

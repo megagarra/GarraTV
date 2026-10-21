@@ -403,6 +403,24 @@ export function getProgressSummary(profileId: string): Record<string, WatchProgr
     return summary;
 }
 
+/**
+ * Everything the profile has started, one row per title with the time of the
+ * latest activity. Series are keyed by series id (not episode), so a caller can
+ * compare it against when the series was last updated in the catalog.
+ */
+export function listWatchedTitles(profileId: string): { type: string; contentId: string; lastWatchedAt: number }[] {
+    const rows = getConnection()
+        .prepare(`
+            SELECT type, content_id, MAX(timestamp) AS last_watched_at
+              FROM watch_progress
+             WHERE profile_id = ?
+             GROUP BY type, content_id
+        `)
+        .all(profileId) as { type: string; content_id: string; last_watched_at: number }[];
+
+    return rows.map(row => ({ type: row.type, contentId: row.content_id, lastWatchedAt: row.last_watched_at }));
+}
+
 /** Every episode of a series, keyed by episode id — or the single movie entry. */
 export function getProgressDetail(
     profileId: string,

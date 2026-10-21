@@ -30,6 +30,17 @@ interface CarouselData {
     categoryId?: string | number;
 }
 
+interface NewReleaseData {
+    id: string;
+    type: 'movie' | 'series';
+    name: string;
+    image?: string;
+    rating?: number;
+    year?: number;
+    href: string;
+    hasNewEpisodes: boolean;
+}
+
 export default function Dashboard() {
     const t = useT();
     const { lastSync } = useData();
@@ -41,6 +52,7 @@ export default function Dashboard() {
 
     const [carouselData, setCarouselData] = useState<CarouselData[]>([]);
     const [isLoadingCarousels, setIsLoadingCarousels] = useState(false);
+    const [newReleases, setNewReleases] = useState<NewReleaseData[]>([]);
     const router = useRouter();
 
     // Progressive reveal: only the first 3 carousels render on mount; the rest
@@ -108,6 +120,23 @@ export default function Dashboard() {
         loadCarousels();
     }, [isConfigured, lastSync]);
 
+    // Per-profile ranking, so it is fetched apart from the shared carousels.
+    // Not critical: a failure just leaves the row out.
+    useEffect(() => {
+        const loadNewReleases = async () => {
+            try {
+                const response = await apiFetch('/api/catalog/new-releases');
+                if (!response.ok) throw new Error('Failed to fetch new releases');
+                const result = await response.json();
+                setNewReleases(result.data || []);
+            } catch (error) {
+                console.error('Failed to load new releases:', error);
+            }
+        };
+
+        loadNewReleases();
+    }, [lastSync]);
+
     const showSkeletons = isLoadingCarousels && carouselData.length === 0;
 
     return (
@@ -135,6 +164,25 @@ export default function Dashboard() {
                                 image={item.image}
                                 ratio="wide"
                                 progress={item.duration > 0 ? item.progress / item.duration : undefined}
+                            />
+                        ))}
+                    </Row>
+                )}
+
+                {newReleases.length > 0 && (
+                    <Row title={t('home.newReleases')} itemWidth="poster">
+                        {newReleases.map(item => (
+                            <Poster
+                                key={`new-${item.type}-${item.id}`}
+                                href={item.href}
+                                title={item.name}
+                                image={item.image}
+                                ratio="poster"
+                                rating={item.rating}
+                                year={item.year}
+                                badge={item.hasNewEpisodes
+                                    ? { text: t('home.newEpisodes'), tone: 'ok' }
+                                    : { text: t('home.newBadge'), tone: 'neutral' }}
                             />
                         ))}
                     </Row>

@@ -52,6 +52,9 @@
     },
     "home": {
         "continueWatching": "Continuar assistindo",
+        "newReleases": "Novidades",
+        "newEpisodes": "Novos episódios",
+        "newBadge": "Novo",
         "loadMoreCategories": "Carregar mais categorias"
     },
     "hero": {
