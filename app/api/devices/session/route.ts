@@ -10,6 +10,12 @@ import {
 } from '@/app/lib/remoteAccess';
 import { authenticateToken, revokeDevice } from '@/app/lib/deviceStore';
 import { PROFILE_COOKIE_NAME } from '@/app/lib/userStore';
+import {
+    ACCOUNT_DEVICE_SESSION_SECONDS,
+    ACCOUNT_SESSION_COOKIE_NAME,
+    accountSessionCookie,
+    createAccountSession,
+} from '@/app/lib/accountSession';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -74,6 +80,13 @@ export async function GET(request: Request) {
             });
         }
 
+        // A paired TV counts as signed in to the account, like the browser that paired it.
+        response.cookies.set(accountSessionCookie(
+            request,
+            await createAccountSession(ACCOUNT_DEVICE_SESSION_SECONDS),
+            ACCOUNT_DEVICE_SESSION_SECONDS
+        ));
+
         if (device.profileId) {
             // Not httpOnly on purpose: ProfileContext reads and rewrites this cookie
             // from the client, and making it httpOnly would break profile switching.
@@ -126,7 +139,7 @@ export async function DELETE(request: Request) {
         revokeDevice(deviceId);
 
         const response = NextResponse.json({ success: true });
-        for (const name of [DEVICE_SESSION_COOKIE_NAME, REMOTE_ACCESS_COOKIE_NAME, PROFILE_COOKIE_NAME]) {
+        for (const name of [DEVICE_SESSION_COOKIE_NAME, REMOTE_ACCESS_COOKIE_NAME, PROFILE_COOKIE_NAME, ACCOUNT_SESSION_COOKIE_NAME]) {
             response.cookies.set({ name, value: '', path: '/', maxAge: 0 });
         }
         response.headers.set('Cache-Control', 'no-store');

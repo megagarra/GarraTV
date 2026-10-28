@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import { reportConsumer, getBroadcastGeneration, type ConsumerState } from '@/app/lib/vodBroadcast';
 
 export const runtime = 'nodejs';
@@ -21,7 +21,7 @@ interface HeartbeatRequestBody {
  * a player stuck on DEMUXER_ERROR keeps downloading and must not hold the stream.
  */
 export async function POST(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {

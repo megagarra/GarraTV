@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import { getNewReleases } from '@/app/lib/newReleases';
 import { resolveProfileId } from '@/app/lib/userStore';
 
@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {

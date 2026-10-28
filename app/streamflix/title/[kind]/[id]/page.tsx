@@ -93,7 +93,7 @@ export default function StreamflixTitlePage() {
     const params = useParams<{ kind: string; id: string }>();
     const kind = params.kind === 'series' ? 'series' : params.kind === 'movie' ? 'movie' : null;
     const id = params.id;
-    const { credentials } = useAuth();
+    const { isAuthenticated } = useAuth();
     const { getCachedDetail, saveCachedDetail } = useData();
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
     const { getProgress, loadDetail } = useWatchProgress();
@@ -109,7 +109,7 @@ export default function StreamflixTitlePage() {
     }, [kind, id, loadDetail]);
 
     useEffect(() => {
-        if (!kind || !id || !credentials) return undefined;
+        if (!kind || !id || !isAuthenticated) return undefined;
         let cancelled = false;
 
         const load = async () => {
@@ -125,7 +125,6 @@ export default function StreamflixTitlePage() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            ...credentials,
                             action: kind === 'movie' ? 'get_vod_info' : 'get_series_info',
                             ...(kind === 'movie' ? { vod_id: id } : { series_id: id }),
                         }),
@@ -163,7 +162,7 @@ export default function StreamflixTitlePage() {
         return () => {
             cancelled = true;
         };
-    }, [kind, id, credentials, getCachedDetail, saveCachedDetail, t]);
+    }, [kind, id, isAuthenticated, getCachedDetail, saveCachedDetail, t]);
 
     const seasons = useMemo(
         () => Object.keys(episodes).sort((a, b) => Number(a) - Number(b)),

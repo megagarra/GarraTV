@@ -7,22 +7,32 @@ import {
     fetchWithRetry,
     parseResponse
 } from './cache';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
+import { publicUserInfo, readCredentials } from '@/app/lib/liveShare';
+
+/** The bare `player_api.php` answer carries `user_info.password`; it must not reach the client. */
+function withoutPassword(data: unknown): unknown {
+    if (!data || typeof data !== 'object' || Array.isArray(data) || !('user_info' in data)) return data;
+    return { ...data, user_info: publicUserInfo((data as { user_info: unknown }).user_info) };
+}
 
 export async function POST(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {
         const body = await request.json();
-        const { hostUrl, username, password, action, page, limit, ...otherParams } = body;
+        const { action, page, limit, ...otherParams } = body;
+        // Any credentials a stale client still sends are dropped: the account is the server's.
+        delete otherParams.hostUrl;
+        delete otherParams.username;
+        delete otherParams.password;
 
-        if (!hostUrl || !username || !password) {
-            return NextResponse.json(
-                { error: 'Missing credentials' },
-                { status: 400 }
-            );
+        const credentials = await readCredentials();
+        if (!credentials) {
+            return NextResponse.json({ error: 'Conta não configurada' }, { status: 503 });
         }
+        const { hostUrl, username, password } = credentials;
 
         // Periodic cache cleanup (every 2 minutes)
         performPeriodicCleanup();
@@ -63,7 +73,7 @@ export async function POST(request: Request) {
                     console.log(`[Proxy] Paginated: Cached ${data.length} items for ${action}`);
                 } else {
                     // Non-array response, return directly
-                    return NextResponse.json(data);
+                    return NextResponse.json(withoutPassword(data));
                 }
             }
 
@@ -98,7 +108,7 @@ export async function POST(request: Request) {
 
         const apiUrl = `${baseUrl}/player_api.php?${params.toString()}`;
 
-        console.log(`[Proxy] Action: ${action} | URL: ${apiUrl}`);
+        console.log(`[Proxy] Action: ${action}`);
         if (Object.keys(otherParams).length > 0) {
             console.log(`[Proxy] Params:`, JSON.stringify(otherParams));
         }
@@ -116,12 +126,12 @@ export async function POST(request: Request) {
         const count = Array.isArray(data) ? data.length : 'object';
         console.log(`[Proxy] Data: ${count} items/type`);
 
-        return NextResponse.json(data);
+        return NextResponse.json(withoutPassword(data));
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[Proxy] CRITICAL Error:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error', details: error.message },
+            { error: 'Internal Server Error', details: error instanceof Error ? error.message : undefined },
             { status: 500 }
         );
     }

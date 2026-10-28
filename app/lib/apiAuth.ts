@@ -3,6 +3,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { authenticateToken, type Device } from './deviceStore';
 import { enforceRemoteAccessForApi } from './remoteAccess';
+import { hasAccountSession } from './accountSession';
 
 /**
  * Unified API guard. The web app authenticates by cookie (remote access PIN, or nothing
@@ -87,4 +88,26 @@ export async function enforceApiAccess(request: Request): Promise<NextResponse |
     }
 
     return enforceRemoteAccessForApi(request);
+}
+
+/** Error code of a 401 from `enforceAccountAccess`; the client signs out on it. */
+export const ACCOUNT_SESSION_REQUIRED = 'account_session_required';
+
+/**
+ * Guard for routes that touch the Xtream account or the owner's settings. On top of
+ * `enforceApiAccess`, the caller must be a paired device or a browser that signed in
+ * (`xstream_session`); a visitor only reaches the free tier.
+ */
+export async function enforceAccountAccess(request: Request): Promise<NextResponse | null> {
+    const accessResponse = await enforceApiAccess(request);
+    if (accessResponse) return accessResponse;
+
+    if (getRequestDevice(request) || await hasAccountSession(request)) {
+        return null;
+    }
+
+    return NextResponse.json(
+        { error: 'Sessão da conta obrigatória', code: ACCOUNT_SESSION_REQUIRED },
+        { status: 401 }
+    );
 }

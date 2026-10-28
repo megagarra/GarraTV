@@ -74,12 +74,6 @@ export function formatEpgTime(unixSec: number, locale: string): string {
     return new Date(unixSec * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
-export interface EpgCredentials {
-    username: string;
-    password: string;
-    hostUrl: string;
-}
-
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_CONCURRENT = 3;
 const epgCache = new Map<string, { at: number; request: Promise<EpgEntry[]> }>();
@@ -104,8 +98,8 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
 }
 
 /** Short EPG for one channel, cached per channel/limit for a few minutes. */
-export function loadShortEpg(credentials: EpgCredentials, streamId: string, limit: number): Promise<EpgEntry[]> {
-    const key = `${credentials.hostUrl}|${streamId}|${limit}`;
+export function loadShortEpg(streamId: string, limit: number): Promise<EpgEntry[]> {
+    const key = `${streamId}|${limit}`;
     const cached = epgCache.get(key);
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.request;
 
@@ -113,7 +107,7 @@ export function loadShortEpg(credentials: EpgCredentials, streamId: string, limi
         const response = await apiFetch('/api/proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...credentials, action: 'get_short_epg', stream_id: streamId, limit }),
+            body: JSON.stringify({ action: 'get_short_epg', stream_id: streamId, limit }),
         });
         return parseEpgPayload(await response.json());
     }).catch((err: unknown) => {

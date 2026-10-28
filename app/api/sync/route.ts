@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
+import { readCredentials } from '@/app/lib/liveShare';
 import { syncXtreamToSqlite, type SyncProgressUpdate, type XtreamCredentials } from '@/app/lib/xtreamSync';
 
 export const runtime = 'nodejs';
@@ -100,15 +101,13 @@ async function runJob(job: SyncJob, credentials: XtreamCredentials) {
 }
 
 export async function POST(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {
-        const body = await request.json() as Partial<XtreamCredentials>;
-        const { hostUrl, username, password } = body;
-
-        if (!hostUrl || !username || !password) {
-            return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
+        const credentials = await readCredentials();
+        if (!credentials) {
+            return NextResponse.json({ error: 'Conta não configurada' }, { status: 503 });
         }
 
         const running = currentRunningJob();
@@ -117,7 +116,7 @@ export async function POST(request: Request) {
         }
 
         const job = createJob();
-        void runJob(job, { hostUrl, username, password });
+        void runJob(job, credentials);
 
         return NextResponse.json({ job: publicJob(job) });
     } catch (error) {
@@ -127,7 +126,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     const { searchParams } = new URL(request.url);
@@ -142,7 +141,7 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     const { searchParams } = new URL(request.url);

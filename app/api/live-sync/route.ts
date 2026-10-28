@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import {
     reportParticipant,
     setSyncCommand,
@@ -29,7 +29,7 @@ function sanitizeMediaTime(value: unknown): number | null {
 }
 
 export async function GET(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     const { searchParams } = new URL(request.url);
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     const body = await request.json().catch(() => null);

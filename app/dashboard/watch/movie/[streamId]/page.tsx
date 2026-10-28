@@ -11,7 +11,7 @@ import { ArrowLeft, Play, Calendar, Star, Clock, Subtitles } from 'lucide-react'
 import Loader from '@/components/Loader';
 import SubtitleSearchPanel from '@/components/SubtitleSearchPanel';
 import LimitReachedModal from '@/components/LimitReachedModal';
-import { apiFetch } from '@/app/lib/apiClient';
+import { apiFetch, apiUrl } from '@/app/lib/apiClient';
 import { formatRating } from '@/app/lib/formatRating';
 import BroadcastStartModal from '@/components/BroadcastStartModal';
 import BroadcastToggle from '@/components/BroadcastToggle';
@@ -51,7 +51,7 @@ import { useTMDb } from '@/app/context/TMDbContext';
 import { useSubtitle } from '@/app/context/SubtitleContext';
 
 export default function WatchMoviePage() {
-    const { credentials } = useAuth();
+    const { isAuthenticated } = useAuth();
     const { updateProgress, getProgress, isLoaded: progressLoaded, loadingDetails } = useWatchProgress();
     const { getCachedDetail, saveCachedDetail } = useData();
     const { searchMovie, isConfigured: tmdbConfigured } = useTMDb();
@@ -138,7 +138,7 @@ export default function WatchMoviePage() {
     }, [isSharing, isPlaying, resumeTime]);
 
     useEffect(() => {
-        if (!credentials || !streamId || isJoining) return;
+        if (!isAuthenticated || !streamId || isJoining) return;
 
         const loadMovieInfo = async () => {
             try {
@@ -154,7 +154,6 @@ export default function WatchMoviePage() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        ...credentials,
                         action: 'get_vod_info',
                         vod_id: streamId
                     })
@@ -177,7 +176,7 @@ export default function WatchMoviePage() {
         };
 
         loadMovieInfo();
-    }, [credentials, streamId, isJoining, getCachedDetail, saveCachedDetail, t]);
+    }, [isAuthenticated, streamId, isJoining, getCachedDetail, saveCachedDetail, t]);
 
     // Resolve TMDB ID for better subtitle matching
     useEffect(() => {
@@ -307,9 +306,8 @@ export default function WatchMoviePage() {
     }
 
     if (isPlaying) {
-        const { hostUrl, username, password } = credentials!;
         const extension = movie.movie_data.container_extension;
-        const directUrl = `${hostUrl}/movie/${username}/${password}/${streamId}.${extension}`;
+        const directUrl = apiUrl(`/api/vod/movie/${encodeURIComponent(`${streamId}.${extension}`)}`);
         const startSeconds = broadcastStart ?? resumeTime;
         // Only the provider's own length is trustworthy here; the relay stream carries
         // just a sliding window, so without this the bar would measure the window.

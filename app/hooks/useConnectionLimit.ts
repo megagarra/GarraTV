@@ -10,15 +10,15 @@ import { apiFetch } from '@/app/lib/apiClient';
  * max_connections == 0 is treated as unlimited.
  */
 export function useConnectionLimit() {
-    const { credentials } = useAuth();
+    const { isAuthenticated } = useAuth();
 
     return useCallback(async (): Promise<boolean> => {
-        if (!credentials) return false;
+        if (!isAuthenticated) return false;
         try {
             const res = await apiFetch('/api/proxy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...credentials, action: '' }),
+                body: JSON.stringify({ action: '' }),
             });
             const data = await res.json();
             const info = data?.user_info;
@@ -29,5 +29,5 @@ export function useConnectionLimit() {
         } catch {
             return false;
         }
-    }, [credentials]);
+    }, [isAuthenticated]);
 }

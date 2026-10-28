@@ -18,7 +18,6 @@ import {
     formatEpgTime,
     loadShortEpg,
     splitNowNext,
-    type EpgCredentials,
     type EpgEntry,
 } from '@/components/streamflix/epg';
 import {
@@ -54,16 +53,16 @@ function nowSeconds(): number {
 }
 
 /** Loads the guide only once the element scrolls into view. */
-function useVisibleEpg(credentials: EpgCredentials | null, streamId: string, limit: number) {
+function useVisibleEpg(guideEnabled: boolean, streamId: string, limit: number) {
     const ref = useRef<HTMLDivElement>(null);
     const [entries, setEntries] = useState<EpgEntry[] | null>(null);
 
     useEffect(() => {
         const node = ref.current;
-        if (!node || !credentials) return undefined;
+        if (!node || !guideEnabled) return undefined;
         let cancelled = false;
         const load = () => {
-            loadShortEpg(credentials, streamId, limit).then((result) => {
+            loadShortEpg(streamId, limit).then((result) => {
                 if (!cancelled) setEntries(result);
             });
         };
@@ -84,7 +83,7 @@ function useVisibleEpg(credentials: EpgCredentials | null, streamId: string, lim
             cancelled = true;
             observer.disconnect();
         };
-    }, [credentials, streamId, limit]);
+    }, [guideEnabled, streamId, limit]);
 
     return { ref, entries };
 }
@@ -111,16 +110,16 @@ interface ChannelProps {
     number: number;
     selected: boolean;
     favorite: boolean;
-    credentials: EpgCredentials | null;
+    guideEnabled: boolean;
     locale: string;
     initialFocus: boolean;
     onSelect: () => void;
     onToggleFavorite: () => void;
 }
 
-function ChannelRow({ item, number, selected, favorite, credentials, locale, initialFocus, onSelect, onToggleFavorite }: ChannelProps) {
+function ChannelRow({ item, number, selected, favorite, guideEnabled, locale, initialFocus, onSelect, onToggleFavorite }: ChannelProps) {
     const t = useT();
-    const { ref, entries } = useVisibleEpg(credentials, item.id, 2);
+    const { ref, entries } = useVisibleEpg(guideEnabled, item.id, 2);
     const now = entries ? splitNowNext(entries, nowSeconds()).now : undefined;
 
     return (
@@ -175,8 +174,8 @@ function ChannelRow({ item, number, selected, favorite, credentials, locale, ini
     );
 }
 
-function ChannelTile({ item, number, selected, credentials, initialFocus, onSelect }: Omit<ChannelProps, 'favorite' | 'locale' | 'onToggleFavorite'>) {
-    const { ref, entries } = useVisibleEpg(credentials, item.id, 2);
+function ChannelTile({ item, number, selected, guideEnabled, initialFocus, onSelect }: Omit<ChannelProps, 'favorite' | 'locale' | 'onToggleFavorite'>) {
+    const { ref, entries } = useVisibleEpg(guideEnabled, item.id, 2);
     const now = entries ? splitNowNext(entries, nowSeconds()).now : undefined;
 
     return (
@@ -213,7 +212,7 @@ function ChannelTile({ item, number, selected, credentials, initialFocus, onSele
 function LiveScreen() {
     const t = useT();
     const { locale } = useI18n();
-    const { credentials } = useAuth();
+    const { isAuthenticated } = useAuth();
     const searchParams = useSearchParams();
     const requested = searchParams.get('channel');
     const initialFilter = searchParams.get('filter') === FILTER_FAVORITES ? FILTER_FAVORITES : FILTER_ALL;
@@ -250,15 +249,15 @@ function LiveScreen() {
     const activeId = selected ? selected.id : null;
 
     useEffect(() => {
-        if (!credentials || !activeId) return undefined;
+        if (!isAuthenticated || !activeId) return undefined;
         let cancelled = false;
-        loadShortEpg(credentials, activeId, 6).then((entries) => {
+        loadShortEpg(activeId, 6).then((entries) => {
             if (!cancelled) setLoadedGuide({ id: activeId, entries });
         });
         return () => {
             cancelled = true;
         };
-    }, [credentials, activeId]);
+    }, [isAuthenticated, activeId]);
 
     const guideLoading = Boolean(activeId) && loadedGuide?.id !== activeId;
     const guide = loadedGuide && loadedGuide.id === activeId ? loadedGuide.entries : [];
@@ -363,7 +362,7 @@ function LiveScreen() {
                                     number={numbers.get(item.id) ?? index + 1}
                                     selected={item.id === activeId}
                                     favorite={isFavorite(item.id, 'live')}
-                                    credentials={credentials}
+                                    guideEnabled={isAuthenticated}
                                     locale={locale}
                                     initialFocus={item.id === activeId}
                                     onSelect={() => setSelectedId(item.id)}
@@ -378,7 +377,7 @@ function LiveScreen() {
                                         item={item}
                                         number={numbers.get(item.id) ?? index + 1}
                                         selected={item.id === activeId}
-                                        credentials={credentials}
+                                        guideEnabled={isAuthenticated}
                                         initialFocus={item.id === activeId}
                                         onSelect={() => setSelectedId(item.id)}
                                     />

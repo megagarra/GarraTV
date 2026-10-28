@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import { translateForRequest } from '@/app/lib/i18n';
 import { listProfiles, createProfile, updateProfile, deleteProfile, ProfilePrefs } from '@/app/lib/userStore';
 
@@ -16,7 +16,7 @@ interface ProfilesRequestBody {
 }
 
 export async function GET(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: NextRequest) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {

@@ -45,7 +45,8 @@
         "compat": "Compatible with the Xtream Codes API",
         "fillAllFields": "Please fill in all fields",
         "failed": "Login failed. Please check your credentials.",
-        "failedShort": "Login failed"
+        "failedShort": "Login failed",
+        "accountTaken": "This server is already linked to another account. Sign in with it to switch."
     },
     "loader": {
         "slow": "Loading is taking longer than expected."
@@ -269,6 +270,7 @@
             "saveFailed": "Couldn't save.",
             "refreshed": "List refreshed: {n} channels.",
             "refreshFailed": "Couldn't refresh the list.",
+            "sessionRequired": "Sign in to the account to change this setting.",
             "defaultCountry": "Default country",
             "defaultCountryHint": "Used when the visitor's country has no list. Each visitor can change country on the free channels screen."
         }
@@ -588,6 +590,11 @@
         "countrySuggested": "Suggested for you",
         "countryAll": "All countries",
         "countryNone": "No country found.",
-        "countryEmpty": "This country has no free channels available right now. Pick another country."
+        "countryEmpty": "This country has no free channels available right now. Pick another country.",
+        "spotlightNow": "On now",
+        "spotlightUntil": "until {time}",
+        "spotlightTrending": "Trending today",
+        "spotlightNew": "Just added",
+        "spotlightToday": "Today at {time}"
     }
 }

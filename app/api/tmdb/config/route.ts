@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
 
 const CONFIG_DIR = path.join(process.cwd(), 'data');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'tmdb-config.json');
@@ -22,7 +22,7 @@ async function ensureConfigDir() {
 
 // GET - Read TMDb configuration
 export async function GET(request: NextRequest) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Save TMDb configuration
 export async function POST(request: NextRequest) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Remove TMDb configuration
 export async function DELETE(request: NextRequest) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {

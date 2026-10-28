@@ -1,34 +1,52 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess, enforceApiAccess, getRequestDevice } from '@/app/lib/apiAuth';
+import { publicUserInfo } from '@/app/lib/liveShare';
+import { ACCOUNT_SESSION_COOKIE_NAME, hasAccountSession, rotateSessionSecret } from '@/app/lib/accountSession';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const CONFIG_PATH = path.join(process.cwd(), 'data', 'config.json');
 
+// GET - whether this caller is signed in, plus the account info the UI shows.
+// The credentials never leave the server.
 export async function GET(request: Request) {
     const accessResponse = await enforceApiAccess(request);
     if (accessResponse) return accessResponse;
 
+    const signedIn = !!getRequestDevice(request) || await hasAccountSession(request);
+    if (!signedIn) {
+        return NextResponse.json({ authenticated: false });
+    }
+
     try {
-        const data = await fs.readFile(CONFIG_PATH, 'utf-8');
-        return NextResponse.json(JSON.parse(data));
-    } catch (error: any) {
-        if (error.code === 'ENOENT') {
-            return NextResponse.json({});
+        const data = JSON.parse(await fs.readFile(CONFIG_PATH, 'utf-8'));
+        if (!data?.credentials || !data.user || !data.server) {
+            return NextResponse.json({ authenticated: false });
+        }
+        return NextResponse.json({ authenticated: true, user: publicUserInfo(data.user), server: data.server });
+    } catch (error: unknown) {
+        if (typeof error === 'object' && error !== null && (error as { code?: string }).code === 'ENOENT') {
+            return NextResponse.json({ authenticated: false });
         }
         return NextResponse.json({ error: 'Failed to read config' }, { status: 500 });
     }
 }
 
+// POST - sign out: forgets the account and ends every session opened for it.
 export async function POST(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {
-        const body = await request.json();
-        await fs.writeFile(CONFIG_PATH, JSON.stringify(body, null, 2));
-        return NextResponse.json({ success: true });
-    } catch (error) {
+        await fs.writeFile(CONFIG_PATH, JSON.stringify({}, null, 2));
+        await rotateSessionSecret();
+        const response = NextResponse.json({ success: true });
+        response.cookies.set({ name: ACCOUNT_SESSION_COOKIE_NAME, value: '', path: '/', maxAge: 0 });
+        return response;
+    } catch {
         return NextResponse.json({ error: 'Failed to save config' }, { status: 500 });
     }
 }

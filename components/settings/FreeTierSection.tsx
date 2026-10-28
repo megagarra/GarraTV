@@ -7,6 +7,7 @@ import {
     countryNameFormatter,
     fetchFreeChannels,
     fetchFreeCountries,
+    FreeTierRequestError,
     refreshFreeChannels,
     saveFreeTierConfig,
     type FreeCountry,
@@ -51,6 +52,11 @@ export default function FreeTierSection() {
             .sort((a, b) => a.label.localeCompare(b.label, locale));
     }, [countries, locale]);
 
+    const errorMessage = (err: unknown, fallbackKey: string) => {
+        if (err instanceof FreeTierRequestError && err.status === 401) return t('settings.freeTier.sessionRequired');
+        return err instanceof Error ? err.message : t(fallbackKey);
+    };
+
     const save = async () => {
         setSaving(true);
         setMessage('');
@@ -58,7 +64,7 @@ export default function FreeTierSection() {
             await saveFreeTierConfig({ defaultCountry, contactLabel, contactUrl });
             setMessage(t('settings.freeTier.saved'));
         } catch (err: unknown) {
-            setMessage(err instanceof Error ? err.message : t('settings.freeTier.saveFailed'));
+            setMessage(errorMessage(err, 'settings.freeTier.saveFailed'));
         } finally {
             setSaving(false);
         }
@@ -72,7 +78,7 @@ export default function FreeTierSection() {
             setCount(total);
             setMessage(t('settings.freeTier.refreshed', { n: total }));
         } catch (err: unknown) {
-            setMessage(err instanceof Error ? err.message : t('settings.freeTier.refreshFailed'));
+            setMessage(errorMessage(err, 'settings.freeTier.refreshFailed'));
         } finally {
             setRefreshing(false);
         }

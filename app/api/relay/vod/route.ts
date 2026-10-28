@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import { killBroadcast, restartVodBroadcast, type VodType } from '@/app/lib/vodBroadcast';
 import { stopDevice } from '@/app/lib/tvModeStore';
 
@@ -24,7 +24,7 @@ interface SeekRequestBody {
  * player asks for the new playlist.
  */
 export async function POST(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
  * device left paused and forgotten.
  */
 export async function DELETE(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {

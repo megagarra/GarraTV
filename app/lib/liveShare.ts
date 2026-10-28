@@ -10,7 +10,8 @@ interface StoredCredentials {
     password: string;
 }
 
-async function readCredentials(): Promise<StoredCredentials | null> {
+/** The Xtream account saved on the server, or null when none is configured. */
+export async function readCredentials(): Promise<StoredCredentials | null> {
     try {
         const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
         const parsed = JSON.parse(raw);
@@ -22,6 +23,14 @@ async function readCredentials(): Promise<StoredCredentials | null> {
     } catch {
         return null;
     }
+}
+
+/** Xtream's `user_info` echoes the password; this is the copy that may reach a browser. */
+export function publicUserInfo(userInfo: unknown): Record<string, unknown> | null {
+    if (!userInfo || typeof userInfo !== 'object') return null;
+    const copy: Record<string, unknown> = { ...(userInfo as Record<string, unknown>) };
+    delete copy.password;
+    return copy;
 }
 
 /** URL upstream real de um canal ao vivo (HLS), montada a partir da conta salva no servidor. */

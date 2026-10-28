@@ -30,7 +30,9 @@ interface ServerSyncJob {
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-    const { credentials } = useAuth();
+    const { isAuthenticated, user, server } = useAuth();
+    // Which account is signed in; the credentials themselves stay on the server.
+    const accountIdentity = isAuthenticated && user && server ? `${server.url}|${user.username}` : null;
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState(0);
     const [lastSync, setLastSync] = useState<number | null>(null);
@@ -56,7 +58,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const syncData = useCallback(async () => {
-        if (!credentials || isSyncingRef.current) return;
+        if (!isAuthenticated || isSyncingRef.current) return;
 
         cancelPollingRef.current = false;
         isSyncingRef.current = true;
@@ -65,11 +67,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         try {
             console.log('[DataContext] Starting server-side sync via /api/sync');
-            const startResponse = await apiFetch('/api/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(credentials),
-            });
+            const startResponse = await apiFetch('/api/sync', { method: 'POST' });
 
             if (!startResponse.ok) {
                 throw new Error('Falha ao iniciar sincronizacao no servidor');
@@ -119,7 +117,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 setSyncProgress(0);
             }, 1000);
         }
-    }, [credentials]);
+    }, [isAuthenticated]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -128,19 +126,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
-    // Runs the initial metadata check + auto-sync once per set of credentials,
-    // as soon as they become available (they start as null and are filled in
-    // asynchronously by AuthContext). Keying on the credentials identity, and
-    // not on a plain boolean, matters twice: a sync failure must not re-trigger
-    // this effect (the identity is unchanged), but a different account logging
-    // in must, since this provider outlives logout — it lives in the root
-    // layout, so `logout()` only navigates and never unmounts it.
+    // Runs the initial metadata check + auto-sync once per signed-in account,
+    // as soon as it is known (AuthContext fills it in asynchronously). Keying on
+    // the account identity, and not on a plain boolean, matters twice: a sync
+    // failure must not re-trigger this effect (the identity is unchanged), but a
+    // different account logging in must, since this provider outlives logout — it
+    // lives in the root layout, so `logout()` only navigates and never unmounts it.
     useEffect(() => {
-        if (!credentials) return;
+        if (!accountIdentity) return;
 
-        const identity = `${credentials.hostUrl}|${credentials.username}`;
-        if (initializedForRef.current === identity) return;
-        initializedForRef.current = identity;
+        if (initializedForRef.current === accountIdentity) return;
+        initializedForRef.current = accountIdentity;
 
         const initData = async () => {
             const meta = await db.getSyncMetadata('categories');
@@ -161,7 +157,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             }
         };
         initData();
-    }, [credentials, syncData]);
+    }, [accountIdentity, syncData]);
 
     const getCachedCategories = useCallback(async (type: 'live' | 'movie' | 'series') => {
         return db.getCategories(type);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess, enforceApiAccess } from '@/app/lib/apiAuth';
 import { buildUpstreamLiveUrl, getAllowedOrigin } from '@/app/lib/liveShare';
 import { findFreeChannel } from '@/app/lib/freeChannels';
 
@@ -34,8 +34,16 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 const inFlight = new Map<string, Promise<CacheEntry>>();
 
-/** Allowlisted origins: the account's + the ones the provider redirects to. */
-const allowedOrigins = new Set<string>();
+/**
+ * Allowlisted origins, per scope. `account`: the provider's + the CDNs it redirects to,
+ * reachable only with an account session. `free`: the hosts of the iptv-org playlists,
+ * open to visitors. Kept apart so a visitor can never ride a free `src` into the account.
+ */
+type RelayScope = 'free' | 'account';
+const allowedOrigins: Record<RelayScope, Set<string>> = {
+    free: new Set<string>(),
+    account: new Set<string>(),
+};
 
 function pruneSegmentCache() {
     if (cache.size <= MAX_CACHED_SEGMENTS) return;
@@ -49,7 +57,7 @@ function pruneSegmentCache() {
 }
 
 /** Busca upstream (seguindo redirects) coalescendo chamadas concorrentes. */
-async function fetchShared(targetUrl: string, ttl: number): Promise<CacheEntry> {
+async function fetchShared(targetUrl: string, ttl: number, trustedOrigins: Set<string>): Promise<CacheEntry> {
     const now = Date.now();
     const cached = cache.get(targetUrl);
     if (cached && cached.expiresAt > now) {
@@ -67,7 +75,7 @@ async function fetchShared(targetUrl: string, ttl: number): Promise<CacheEntry> 
         const finalUrl = upstream.url || targetUrl;
         // Allow the final origin (the CDN the provider redirected to).
         try {
-            allowedOrigins.add(new URL(finalUrl).origin);
+            trustedOrigins.add(new URL(finalUrl).origin);
         } catch {
             /* ignore */
         }
@@ -139,7 +147,9 @@ function rewritePlaylist(text: string, baseUrl: string, trustedOrigins: Set<stri
         .join('\n');
 }
 
-async function resolveTarget(request: Request): Promise<{ url: string } | { error: NextResponse }> {
+type RelayTarget = { url: string; scope: RelayScope };
+
+async function resolveTarget(request: Request): Promise<RelayTarget | { error: NextResponse }> {
     const { searchParams } = new URL(request.url);
     const src = searchParams.get('src');
     const streamId = searchParams.get('streamId');
@@ -153,27 +163,28 @@ async function resolveTarget(request: Request): Promise<{ url: string } | { erro
         if (!channel) {
             return { error: NextResponse.json({ error: 'Canal não encontrado' }, { status: 404 }) };
         }
-        allowedOrigins.add(new URL(channel.url).origin);
-        return { url: channel.url };
+        allowedOrigins.free.add(new URL(channel.url).origin);
+        return { url: channel.url, scope: 'free' };
     }
 
-    // Guests have no account; their segment requests are covered by the origins
-    // the free playlists above already allowlisted.
     const accountOrigin = await getAllowedOrigin();
-    if (accountOrigin) allowedOrigins.add(accountOrigin);
+    if (accountOrigin) allowedOrigins.account.add(accountOrigin);
 
     if (src) {
-            // Open-proxy guard: only relay the account origin or the CDNs it redirects to.
+        // Open-proxy guard: only relay origins a playlist we fetched pointed at.
         let origin: string;
         try {
             origin = new URL(src).origin;
         } catch {
             return { error: NextResponse.json({ error: 'src inválido' }, { status: 400 }) };
         }
-        if (!allowedOrigins.has(origin)) {
-            return { error: NextResponse.json({ error: 'Origem não permitida' }, { status: 403 }) };
+        if (allowedOrigins.free.has(origin)) {
+            return { url: src, scope: 'free' };
         }
-        return { url: src };
+        if (allowedOrigins.account.has(origin)) {
+            return { url: src, scope: 'account' };
+        }
+        return { error: NextResponse.json({ error: 'Origem não permitida' }, { status: 403 }) };
     }
 
     if (streamId && type === 'live') {
@@ -184,7 +195,7 @@ async function resolveTarget(request: Request): Promise<{ url: string } | { erro
         if (!upstream) {
             return { error: NextResponse.json({ error: 'Conta não configurada' }, { status: 503 }) };
         }
-        return { url: upstream };
+        return { url: upstream, scope: 'account' };
     }
 
     return { error: NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 }) };
@@ -197,16 +208,23 @@ export async function GET(request: Request) {
     const resolved = await resolveTarget(request);
     if ('error' in resolved) return resolved.error;
 
+    // Visitors may watch the free tier; account channels need a signed-in session.
+    if (resolved.scope === 'account') {
+        const accountResponse = await enforceAccountAccess(request);
+        if (accountResponse) return accountResponse;
+    }
+
     const targetUrl = resolved.url;
+    const trustedOrigins = allowedOrigins[resolved.scope];
     const playlistHint = targetUrl.includes('.m3u8');
 
     try {
-        const entry = await fetchShared(targetUrl, playlistHint ? PLAYLIST_TTL_MS : SEGMENT_TTL_MS);
+        const entry = await fetchShared(targetUrl, playlistHint ? PLAYLIST_TTL_MS : SEGMENT_TTL_MS, trustedOrigins);
 
         if (looksLikePlaylist(entry.finalUrl, entry.contentType)) {
             const text = Buffer.from(entry.body).toString('utf-8');
             // Base = final URL after redirects (where the segments actually live).
-            const rewritten = rewritePlaylist(text, entry.finalUrl, allowedOrigins);
+            const rewritten = rewritePlaylist(text, entry.finalUrl, trustedOrigins);
             return new NextResponse(rewritten, {
                 status: 200,
                 headers: {

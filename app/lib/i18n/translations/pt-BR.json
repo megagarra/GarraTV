@@ -45,7 +45,8 @@
         "compat": "Compatível com Xtream Codes API",
         "fillAllFields": "Por favor, preencha todos os campos",
         "failed": "Falha no login. Por favor, verifique suas credenciais.",
-        "failedShort": "Falha no login"
+        "failedShort": "Falha no login",
+        "accountTaken": "Este servidor já está ligado a outra conta. Entre com ela para trocar."
     },
     "loader": {
         "slow": "Carregamento demorando mais que o esperado."
@@ -269,6 +270,7 @@
             "saveFailed": "Não foi possível salvar.",
             "refreshed": "Lista atualizada: {n} canais.",
             "refreshFailed": "Não foi possível atualizar a lista.",
+            "sessionRequired": "Entre com a conta para alterar esta configuração.",
             "defaultCountry": "País padrão",
             "defaultCountryHint": "Usado quando o país do visitante não tem lista. Cada visitante pode trocar o país na tela de canais grátis."
         }
@@ -588,6 +590,11 @@
         "countrySuggested": "Sugeridos para você",
         "countryAll": "Todos os países",
         "countryNone": "Nenhum país encontrado.",
-        "countryEmpty": "Este país não tem canais abertos disponíveis agora. Escolha outro país."
+        "countryEmpty": "Este país não tem canais abertos disponíveis agora. Escolha outro país.",
+        "spotlightNow": "Agora na TV",
+        "spotlightUntil": "até {time}",
+        "spotlightTrending": "Em alta hoje",
+        "spotlightNew": "Acabou de chegar",
+        "spotlightToday": "Hoje às {time}"
     }
 }

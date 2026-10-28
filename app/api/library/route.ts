@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess, enforceApiAccess } from '@/app/lib/apiAuth';
 import * as library from '@/app/lib/sqliteCache';
 import type { ContentType } from '@/app/lib/dbTypes';
 
@@ -51,6 +51,19 @@ interface LibraryRequestBody {
 
 const CONTENT_TYPES: ContentType[] = ['live', 'movie', 'series'];
 
+/** Reads stay open (the sign-in screen's poster mosaic uses them); writes are owner-only. */
+const WRITE_ACTIONS: LibraryAction[] = [
+    'saveDetail',
+    'saveCategories',
+    'saveStreams',
+    'saveSyncMetadata',
+    'clearCache',
+    'saveTMDbCache',
+    'clearExpiredTMDbCache',
+    'saveCarouselCache',
+    'clearExpiredCarouselCache',
+];
+
 function jsonData(data: unknown) {
     return NextResponse.json({ data: data ?? null });
 }
@@ -65,6 +78,11 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json() as LibraryRequestBody;
+
+        if (body.action && WRITE_ACTIONS.indexOf(body.action) >= 0) {
+            const accountResponse = await enforceAccountAccess(request);
+            if (accountResponse) return accountResponse;
+        }
 
         // The detail cache is keyed per content type: a `series_id` and a `stream_id`
         // can be the same number and must not read back each other's payload.

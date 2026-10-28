@@ -12,7 +12,7 @@ import { ArrowLeft, Play, Calendar, Star, Clock, Subtitles, Download, Loader2, X
 import Loader from '@/components/Loader';
 import SubtitleSearchPanel from '@/components/SubtitleSearchPanel';
 import SyncButton from '@/components/SyncButton';
-import { apiFetch } from '@/app/lib/apiClient';
+import { apiFetch, apiUrl } from '@/app/lib/apiClient';
 import { formatRating } from '@/app/lib/formatRating';
 import BroadcastStartModal from '@/components/BroadcastStartModal';
 import BroadcastToggle from '@/components/BroadcastToggle';
@@ -97,7 +97,7 @@ const BATCH_LANGUAGES = [
 ];
 
 export default function WatchSeriesPage() {
-    const { credentials } = useAuth();
+    const { isAuthenticated } = useAuth();
     const { updateProgress, getProgress, loadDetail, isLoaded: progressLoaded, loadingDetails } = useWatchProgress();
     const { getCachedDetail, saveCachedDetail } = useData();
     const { searchTV, isConfigured: tmdbConfigured } = useTMDb();
@@ -218,7 +218,7 @@ export default function WatchSeriesPage() {
     }, [ensureSubtitleConfigLoaded]);
 
     useEffect(() => {
-        if (!credentials || !seriesId || isJoining) return;
+        if (!isAuthenticated || !seriesId || isJoining) return;
 
         const loadSeriesInfo = async () => {
             try {
@@ -239,7 +239,6 @@ export default function WatchSeriesPage() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        ...credentials,
                         action: 'get_series_info',
                         series_id: seriesId
                     })
@@ -267,7 +266,7 @@ export default function WatchSeriesPage() {
         };
 
         loadSeriesInfo();
-    }, [credentials, seriesId, isJoining, getCachedDetail, saveCachedDetail, t]);
+    }, [isAuthenticated, seriesId, isJoining, getCachedDetail, saveCachedDetail, t]);
 
     // Resolve TMDB ID for better subtitle matching
     useEffect(() => {
@@ -593,9 +592,8 @@ export default function WatchSeriesPage() {
     }
 
     if (selectedEpisode) {
-        const { hostUrl, username, password } = credentials!;
         const extension = selectedEpisode.container_extension;
-        const directUrl = `${hostUrl}/series/${username}/${password}/${selectedEpisode.id}.${extension}`;
+        const directUrl = apiUrl(`/api/vod/series/${encodeURIComponent(`${selectedEpisode.id}.${extension}`)}`);
         const startSeconds = broadcastStart?.episodeId === selectedEpisode.id
             ? broadcastStart.start
             : resumeTime;

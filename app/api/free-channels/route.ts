@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { enforceApiAccess } from '@/app/lib/apiAuth';
+import { enforceAccountAccess, enforceApiAccess } from '@/app/lib/apiAuth';
 import {
     getFreeChannels,
     getFreeCountries,
@@ -68,8 +68,9 @@ export async function GET(request: Request) {
     }
 }
 
+// POST - owner only: a visitor must not swap the contact or force upstream fetches.
 export async function POST(request: Request) {
-    const accessResponse = await enforceApiAccess(request);
+    const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
 
     try {

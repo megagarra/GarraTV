@@ -123,3 +123,42 @@ export const getCarouselCache = async <T = never>(dateKey: string): Promise<T[] 
 export const clearExpiredCarouselCache = async (currentDateKey: string) => {
     await writeCache('clearExpiredCarouselCache', { currentDateKey });
 };
+
+export interface SpotlightItem {
+    title: string;
+    subtitle?: string;
+    image?: string;
+    logo?: string;
+    start?: number;
+    end?: number;
+    matchup?: [string, string];
+    poster?: string;
+    kicker?: string;
+    startsAt?: string;
+    href: string;
+    reason: 'now' | 'today' | 'trending' | 'new';
+}
+
+export interface Spotlight {
+    live: SpotlightItem[];
+    movie: SpotlightItem[];
+    series: SpotlightItem[];
+    generatedAt: number;
+}
+
+/** Home "right now" picks: live programme on air, trending/new movies and series. */
+export const getSpotlight = async (lang: string): Promise<Spotlight | null> => {
+    try {
+        const response = await apiFetch('/api/spotlight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lang }),
+        });
+        if (!response.ok) return null;
+        const payload = await response.json() as { data?: Spotlight };
+        return payload.data ?? null;
+    } catch (error) {
+        console.error('[Spotlight] Request failed', error);
+        return null;
+    }
+};

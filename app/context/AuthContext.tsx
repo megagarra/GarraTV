@@ -24,24 +24,24 @@ interface ServerInfo {
     time_now: string;
 }
 
+/**
+ * What the browser keeps about the account. The provider credentials live only on
+ * the server; the session is an httpOnly cookie this code never sees.
+ */
 interface StoredAuthData {
-    credentials: {
-        username: string;
-        password: string;
-        hostUrl: string;
-    };
     user: UserInfo;
     server: ServerInfo;
+}
+
+interface ConfigResponse {
+    authenticated?: boolean;
+    user?: UserInfo;
+    server?: ServerInfo;
 }
 
 interface AuthState {
     user: UserInfo | null;
     server: ServerInfo | null;
-    credentials: {
-        username: string;
-        password: string;
-        hostUrl: string;
-    } | null;
     isAuthenticated: boolean;
     login: (serverUrl: string, user: string, pass: string, redirectTo?: string) => Promise<void>;
     logout: (redirectTo?: string) => void;
@@ -50,18 +50,43 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+const AUTH_STORAGE_KEY = 'xstream_auth';
+
+function storeAuth(data: StoredAuthData | null) {
+    try {
+        if (data) {
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user: data.user, server: data.server }));
+        } else {
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+    } catch (e) {
+        console.warn('Failed to update stored auth', e);
+    }
+}
+
 function readStoredAuth(): StoredAuthData | null {
     try {
-        const stored = localStorage.getItem('xstream_auth');
+        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
         if (!stored) return null;
 
-        const parsed = JSON.parse(stored) as StoredAuthData;
-        if (!parsed.credentials || !parsed.user || !parsed.server) return null;
+        const parsed = JSON.parse(stored) as Partial<StoredAuthData> & { credentials?: unknown };
+        if (!parsed.user || !parsed.server) {
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+            return null;
+        }
 
-        return parsed;
+        // Older builds cached the provider password here (and Xtream echoes it inside
+        // user_info); rewrite the entry so it no longer sits in the browser.
+        const user = { ...parsed.user } as UserInfo & { password?: unknown };
+        if (parsed.credentials !== undefined || user.password !== undefined) {
+            delete user.password;
+            storeAuth({ user, server: parsed.server });
+        }
+
+        return { user, server: parsed.server };
     } catch (e) {
         console.error("Failed to parse stored auth", e);
-        localStorage.removeItem('xstream_auth');
+        localStorage.removeItem(AUTH_STORAGE_KEY);
         return null;
     }
 }
@@ -77,6 +102,7 @@ async function fetchJsonWithTimeout<T>(url: string, timeoutMs = 6000): Promise<T
             })
         ]);
 
+        if (!response.ok) return null;
         return await response.json() as T;
     } catch (e) {
         console.warn(`Request failed or timed out: ${url}`, e);
@@ -89,7 +115,6 @@ async function fetchJsonWithTimeout<T>(url: string, timeoutMs = 6000): Promise<T
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<UserInfo | null>(null);
     const [server, setServer] = useState<ServerInfo | null>(null);
-    const [credentials, setCredentials] = useState<AuthState['credentials']>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
@@ -100,44 +125,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             try {
                 const storedAuth = readStoredAuth();
                 if (storedAuth) {
-                    setCredentials(storedAuth.credentials);
                     setUser(storedAuth.user);
                     setServer(storedAuth.server);
                     setIsAuthenticated(true);
                     setIsLoading(false);
                 }
 
-                const data = await fetchJsonWithTimeout<Partial<StoredAuthData>>('/api/config');
-                if (data?.credentials && data.user && data.server) {
-                    setCredentials(data.credentials);
+                const data = await fetchJsonWithTimeout<ConfigResponse>('/api/config');
+                if (data?.authenticated && data.user && data.server) {
                     setUser(data.user);
                     setServer(data.server);
                     setIsAuthenticated(true);
-
-                    try {
-                        localStorage.setItem('xstream_auth', JSON.stringify(data));
-                    } catch (e) {
-                        console.warn("Failed to cache server auth", e);
-                    }
+                    storeAuth({ user: data.user, server: data.server });
+                } else if (data) {
+                    // The server answered: this browser has no session (expired, signed
+                    // out elsewhere, or a visitor). The cached account is stale.
+                    storeAuth(null);
+                    setUser(null);
+                    setServer(null);
+                    setIsAuthenticated(false);
                 } else if (!storedAuth) {
                     setIsAuthenticated(false);
                 }
+                // No answer at all (offline, timeout): keep the cached account.
             } catch (e) {
                 console.error("Critical error in initAuth:", e);
-                if (!readStoredAuth()) {
-                    setUser(null);
-                    setServer(null);
-                    setCredentials(null);
-                    setIsAuthenticated(false);
-                } else {
-                    const storedAuth = readStoredAuth();
-                    if (storedAuth) {
-                        setCredentials(storedAuth.credentials);
-                        setUser(storedAuth.user);
-                        setServer(storedAuth.server);
-                        setIsAuthenticated(true);
-                    }
-                }
             } finally {
                 setIsLoading(false);
             }
@@ -160,23 +172,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || t('login.failedShort'));
+                throw new Error(res.status === 403 ? t('login.accountTaken') : (data.error || t('login.failedShort')));
             }
 
-            const userInfo = data.user_info;
-            const serverInfo = data.server_info;
+            const userInfo = data.user_info as UserInfo;
+            const serverInfo = data.server_info as ServerInfo;
 
-            const authData = {
-                credentials: { hostUrl, username, password },
-                user: userInfo,
-                server: serverInfo
-            };
-
-            localStorage.setItem('xstream_auth', JSON.stringify(authData));
+            storeAuth({ user: userInfo, server: serverInfo });
 
             setUser(userInfo);
             setServer(serverInfo);
-            setCredentials(authData.credentials);
             setIsAuthenticated(true);
 
             router.push(typeof redirectTo === 'string' ? redirectTo : '/streamflix/home');
@@ -191,28 +196,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const logout = async (redirectTo?: string) => {
         try {
-            await Promise.all([
-                apiFetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
-                }),
-                db.clearCache()
-            ]);
+            // Cache first: signing out ends the session the cache write needs.
+            await db.clearCache();
         } catch (e) {
-            console.error("Failed to clear server config or database", e);
+            console.error("Failed to clear the catalog cache", e);
         }
-        localStorage.removeItem('xstream_auth');
+        try {
+            await apiFetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+        } catch (e) {
+            console.error("Failed to clear server config", e);
+        }
+        storeAuth(null);
         setUser(null);
         setServer(null);
-        setCredentials(null);
         setIsAuthenticated(false);
         // onClick={logout} passes the click event; only an explicit path may override the default.
         router.push(typeof redirectTo === 'string' ? redirectTo : '/streamflix');
     };
 
     return (
-        <AuthContext.Provider value={{ user, server, credentials, isAuthenticated, login, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, server, isAuthenticated, login, logout, isLoading }}>
             {children}
         </AuthContext.Provider>
     );
