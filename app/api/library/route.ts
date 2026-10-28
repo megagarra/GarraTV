@@ -15,6 +15,9 @@ type LibraryAction =
     | 'getStreams'
     | 'searchStreams'
     | 'getStreamCount'
+    | 'getCategoryCounts'
+    | 'listStreams'
+    | 'getRecentStreams'
     | 'getStreamsByIds'
     | 'saveSyncMetadata'
     | 'getSyncMetadata'
@@ -37,6 +40,8 @@ interface LibraryRequestBody {
     meta?: Parameters<typeof library.saveSyncMetadata>[0];
     query?: string;
     limit?: number;
+    offset?: number;
+    order?: 'name' | 'rating';
     key?: string;
     dateKey?: string;
     currentDateKey?: string;
@@ -96,6 +101,34 @@ export async function POST(request: Request) {
                 ));
             case 'getStreamCount':
                 return jsonData(library.getStreamCount(body.type as ContentType | undefined));
+            case 'getCategoryCounts': {
+                const contentType = asContentType(body.type);
+                if (!contentType) {
+                    return NextResponse.json({ error: 'Tipo de conteúdo inválido' }, { status: 400 });
+                }
+                return jsonData(library.getCategoryCounts(contentType));
+            }
+            case 'listStreams': {
+                const contentType = asContentType(body.type);
+                if (!contentType) {
+                    return NextResponse.json({ error: 'Tipo de conteúdo inválido' }, { status: 400 });
+                }
+                const categoryId = body.categoryId ? String(body.categoryId) : undefined;
+                return jsonData(library.listStreams(
+                    contentType,
+                    categoryId,
+                    body.limit ?? 60,
+                    body.offset ?? 0,
+                    body.order === 'rating' ? 'rating' : 'name',
+                ));
+            }
+            case 'getRecentStreams': {
+                const contentType = asContentType(body.type);
+                if (!contentType) {
+                    return NextResponse.json({ error: 'Tipo de conteúdo inválido' }, { status: 400 });
+                }
+                return jsonData(library.getRecentStreams(contentType, body.limit ?? 60));
+            }
             case 'getStreamsByIds':
                 return jsonData(library.getStreamsByIds(body.ids ?? [], asContentType(body.type)));
             case 'saveSyncMetadata':

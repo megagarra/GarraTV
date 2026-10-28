@@ -28,12 +28,12 @@ interface NavItem {
 }
 
 const CONTENT_ITEMS: NavItem[] = [
-    { labelKey: 'home', icon: Home, path: '/dashboard' },
+    { labelKey: 'home', icon: Home, path: '/streamflix/home' },
     { labelKey: 'search', icon: Search, path: '/dashboard/search' },
-    { labelKey: 'myList', icon: Bookmark, path: '/dashboard/favorites' },
-    { labelKey: 'live', icon: Tv, path: '/dashboard/live' },
-    { labelKey: 'movies', icon: Film, path: '/dashboard/movies' },
-    { labelKey: 'series', icon: Layers, path: '/dashboard/series' },
+    { labelKey: 'myList', icon: Bookmark, path: '/streamflix/favorites' },
+    { labelKey: 'live', icon: Tv, path: '/streamflix/live' },
+    { labelKey: 'movies', icon: Film, path: '/streamflix/movies' },
+    { labelKey: 'series', icon: Layers, path: '/streamflix/series' },
 ];
 
 const SYSTEM_ITEMS: NavItem[] = [
@@ -52,8 +52,7 @@ export default function NavRail() {
     const [isExpanded, setIsExpanded] = useState(false);
     const asideRef = useRef<HTMLElement>(null);
 
-    // '/dashboard' is a prefix of every route, so it only matches exactly.
-    const isActive = (path: string) => (path === '/dashboard' ? pathname === path : pathname.startsWith(path));
+    const isActive = (path: string) => pathname.startsWith(path);
 
     // `:focus-within` does not exist on Chromium 53 (spec 02 §2): React's onFocus/onBlur
     // bubble like native focusin/focusout, so tracking them on the <aside> reproduces it.

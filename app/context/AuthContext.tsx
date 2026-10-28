@@ -43,8 +43,8 @@ interface AuthState {
         hostUrl: string;
     } | null;
     isAuthenticated: boolean;
-    login: (serverUrl: string, user: string, pass: string) => Promise<void>;
-    logout: () => void;
+    login: (serverUrl: string, user: string, pass: string, redirectTo?: string) => Promise<void>;
+    logout: (redirectTo?: string) => void;
     isLoading: boolean;
 }
 
@@ -146,7 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         initAuth();
     }, []);
 
-    const login = async (hostUrl: string, username: string, password: string) => {
+    const login = async (hostUrl: string, username: string, password: string, redirectTo?: string) => {
         setIsLoading(true);
         try {
             const res = await apiFetch('/api/auth/login', {
@@ -179,7 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setCredentials(authData.credentials);
             setIsAuthenticated(true);
 
-            router.push('/dashboard');
+            router.push(typeof redirectTo === 'string' ? redirectTo : '/streamflix/home');
 
         } catch (error) {
             console.error(error);
@@ -189,7 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const logout = async () => {
+    const logout = async (redirectTo?: string) => {
         try {
             await Promise.all([
                 apiFetch('/api/config', {
@@ -207,7 +207,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setServer(null);
         setCredentials(null);
         setIsAuthenticated(false);
-        router.push('/');
+        // onClick={logout} passes the click event; only an explicit path may override the default.
+        router.push(typeof redirectTo === 'string' ? redirectTo : '/streamflix');
     };
 
     return (

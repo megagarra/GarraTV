@@ -57,7 +57,7 @@ export default function AccountSection() {
             </dl>
 
             <div className="mt-6">
-                <Button variant="danger" icon={LogOut} onClick={logout}>
+                <Button variant="danger" icon={LogOut} onClick={() => logout()}>
                     {t('settings.account.signOut')}
                 </Button>
             </div>

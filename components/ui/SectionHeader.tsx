@@ -13,7 +13,7 @@ export default function SectionHeader({ title, count, action, description }: Sec
     return (
         <div className="flex items-center justify-between mb-3">
             <div>
-                <h2 className="text-lg md:text-xl font-semibold text-ink">
+                <h2 className="font-display text-lg md:text-xl font-extrabold text-ink">
                     {title}
                     {count !== undefined && <span className="tnum text-ink-2"> ({count})</span>}
                 </h2>

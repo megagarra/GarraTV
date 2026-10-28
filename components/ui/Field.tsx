@@ -12,12 +12,12 @@ export interface FieldProps {
 
 /** Shared class string for inputs, so it isn't repeated across 12 forms. */
 export const inputClassName =
-    'w-full h-11 px-3 rounded-lg bg-surface border border-line text-ink placeholder:text-ink-3 text-sm md:text-base';
+    'w-full h-11 px-[14px] rounded-md bg-surface border border-line-strong text-ink placeholder:text-ink-3 text-sm md:text-base transition-colors duration-200 focus:border-brand';
 
 export default function Field({ label, htmlFor, error, hint, children }: FieldProps) {
     return (
         <div>
-            <label htmlFor={htmlFor} className="block text-sm text-ink-2 mb-1.5">
+            <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-ink-2 mb-2">
                 {label}
             </label>
             {children}

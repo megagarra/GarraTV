@@ -13,10 +13,13 @@
   (pílula de perfil, TMDb/Legendas, "Transmitir sempre", indicadores do hero).
   Reafirmamos o reset sem `:where()`.
 */
+/* Bare `[type=...]` would tie with a Tailwind class (0,1,0) and win by loading
+   later, wiping `bg-*` from every <button type="button">; scoping it to <input>
+   keeps <button> at element specificity, which any utility class overrides. */
 button,
-[type="button"],
-[type="reset"],
-[type="submit"] {
+input[type="button"],
+input[type="reset"],
+input[type="submit"] {
     -webkit-appearance: none;
     appearance: none;
     background-color: transparent;
@@ -40,34 +43,37 @@ button,
    ========================================================================== */
 :root {
     /* superfícies */
-    --bg: #0b0b0c;
-    --surface: #141416;
-    --surface-2: #1c1c1f;
-    --surface-3: #26262a;
+    /* StreamFlix palette (StreamFlix IPTV UI Mockups/design_handoff_streamflix). */
+    --bg: #141414;
+    --surface: #1f1f1f;
+    --surface-2: #2a2a2a;
+    --surface-3: #333333;
 
     /* traços */
-    --line: rgba(255, 255, 255, 0.08);
-    --line-strong: rgba(255, 255, 255, 0.16);
+    --line: #2a2a2a;
+    --line-strong: #333333;
 
     /* texto */
-    --text: #f4f4f5;
-    --text-2: #a8a8b0;
-    --text-3: #71717a;
+    --text: #ffffff;
+    --text-2: #b3b3b3;
+    --text-3: #8c8c8c;
 
     /* semântica: branco é o cursor, vermelho é marca + no ar. Nada mais. */
-    --focus: #ffffff;
+    --focus: #e50914;
     --brand: #e50914;
+    --brand-strong: #b20710;
     --brand-soft: rgba(229, 9, 20, 0.14);
     --ok: #34d399;
     --warn: #fbbf24;
 
-    /* tipografia — nenhuma webfont é baixada: TV com rede ruim não pode depender disso */
+    /* Typography: the StreamFlix layouts override --font-ui with Manrope and set
+       --sf-display to Montserrat (next/font, self-hosted, so no third-party fetch). */
     --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
     /* Legado: mantidos porque `video::cue` e o VideoPlayer os referenciam. */
-    --background: #0b0b0c;
-    --foreground: #f4f4f5;
+    --background: #141414;
+    --foreground: #ffffff;
     --font-main: var(--font-ui);
 }
 
@@ -75,8 +81,8 @@ body {
     margin: 0;
     padding: 0;
     /* !important porque a webOS pinta o fundo do <body> antes do CSS resolver. */
-    background-color: #0b0b0c !important;
-    color: #f4f4f5 !important;
+    background-color: #141414 !important;
+    color: #ffffff !important;
     font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -99,12 +105,15 @@ body {
   `border-radius` e desenha um retângulo em volta de um card arredondado.
   `box-shadow` acompanha o raio em todos os engines-alvo.
 */
-[data-focusable="true"] {
+[data-focusable="true"]:not([data-own-focus]) {
     outline: none;
     transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
 }
 
-[data-focusable="true"]:focus {
+/* StreamFlix screens mark their focusables `data-own-focus` and draw focus with
+   their own utilities; this rule would otherwise win the cascade (it loads after
+   Tailwind's utilities) and force `position: relative` onto absolute buttons. */
+[data-focusable="true"]:not([data-own-focus]):focus {
     /* Duas camadas: um fosso na cor de fundo, depois o anel branco. Sem o
        fosso, um elemento focável claro (ex.: o botão "Assistir", que é
        bg-ink/branco) fica encostado num anel da mesma cor e o foco some. */

@@ -30,6 +30,7 @@ const config: Config = {
                 },
                 brand: {
                     DEFAULT: "var(--brand)",
+                    strong: "var(--brand-strong)",
                     soft: "var(--brand-soft)",
                 },
                 ok: "var(--ok)",
@@ -46,6 +47,7 @@ const config: Config = {
             },
             fontFamily: {
                 sans: ["var(--font-ui)"],
+                display: ["var(--sf-display, var(--font-ui))"],
                 mono: ["var(--font-mono)"],
             },
         },

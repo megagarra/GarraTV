@@ -203,10 +203,10 @@ export default function SearchPage() {
     const showEmptyHint = query.length < MIN_QUERY_LENGTH;
 
     return (
-        <div className="min-h-full flex flex-col space-y-8 p-4 md:p-6 lg:p-10">
+        <div className="min-h-full flex flex-col space-y-8 px-4 md:px-10 pt-7 pb-12">
             <div className="flex flex-col space-y-6">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-semibold text-ink tracking-tight">{t('search.title')}</h1>
+                    <h1 className="font-display text-[28px] font-extrabold text-ink">{t('search.title')}</h1>
                     <p className="text-ink-2 mt-1 text-sm md:text-base">{t('search.subtitle')}</p>
                 </div>
 
@@ -222,8 +222,8 @@ export default function SearchPage() {
                                 data-focusable="true"
                                 tabIndex={0}
                                 className={[
-                                    'mr-2 h-10 px-4 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
-                                    isActive ? 'bg-ink text-bg' : 'bg-surface-2 text-ink-2 border border-line',
+                                    'mr-2 h-9 px-[14px] rounded-[18px] text-[13px] font-bold transition-colors whitespace-nowrap',
+                                    isActive ? 'bg-brand text-white border border-brand' : 'bg-surface text-ink-2 border border-line-strong',
                                 ].join(' ')}
                             >
                                 {t(tab.labelKey)}
@@ -241,7 +241,7 @@ export default function SearchPage() {
                 ) : isSearching && results.length === 0 ? (
                     <CardGrid base={2} md={4} lg={5} xl={6} gap={6}>
                         {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-                            <div key={index} className="ratio ratio-poster rounded-xl overflow-hidden">
+                            <div key={index} className="ratio ratio-poster rounded-md overflow-hidden">
                                 <Skeleton className="ratio-fill" />
                             </div>
                         ))}

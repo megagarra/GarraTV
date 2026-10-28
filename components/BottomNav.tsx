@@ -6,9 +6,9 @@ import { Home, Search, Bookmark, Radio, Settings } from 'lucide-react';
 import { useT } from '@/app/context/I18nContext';
 
 const mobileLinks = [
-    { labelKey: 'home', icon: Home, path: '/dashboard' },
+    { labelKey: 'home', icon: Home, path: '/streamflix/home' },
     { labelKey: 'search', icon: Search, path: '/dashboard/search' },
-    { labelKey: 'myList', icon: Bookmark, path: '/dashboard/favorites' },
+    { labelKey: 'myList', icon: Bookmark, path: '/streamflix/favorites' },
     { labelKey: 'tvMode', icon: Radio, path: '/dashboard/tv' },
     { labelKey: 'settings', icon: Settings, path: '/dashboard/settings' },
 ];
@@ -22,7 +22,7 @@ export default function BottomNav() {
         <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-line flex items-center justify-around h-16 px-2 z-[60] md:hidden">
             {mobileLinks.map((link) => {
                 const Icon = link.icon;
-                const isActive = link.path === '/dashboard' ? pathname === link.path : pathname.startsWith(link.path);
+                const isActive = pathname.startsWith(link.path);
 
                 return (
                     <Link

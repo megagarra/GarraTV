@@ -58,7 +58,7 @@ export default function Poster({
             onFocus={onFocus}
             className={['spotlight-item focus-card block', className].join(' ')}
         >
-            <div className={['ratio', RATIO_CLASSNAME[ratio], 'focus-card-target rounded-xl overflow-hidden bg-surface-2'].join(' ')}>
+            <div className={['ratio', RATIO_CLASSNAME[ratio], 'focus-card-target rounded-md overflow-hidden bg-surface'].join(' ')}>
                 <div className="ratio-fill">
                     {showImage ? (
                         <img

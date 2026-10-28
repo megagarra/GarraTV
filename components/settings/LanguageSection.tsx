@@ -1,12 +1,13 @@
 'use client';
 
 import { useI18n } from '@/app/context/I18nContext';
+import { SYSTEM_LOCALE } from '@/app/lib/i18n';
 import Field, { inputClassName } from '@/components/ui/Field';
 import SectionHeader from '@/components/ui/SectionHeader';
 
 /** Interface language picker. New languages come from `app/lib/i18n`. */
 export default function LanguageSection() {
-    const { locale, locales, setLocale, t } = useI18n();
+    const { locale, locales, setLocale, t, followsSystem } = useI18n();
 
     return (
         <div>
@@ -22,12 +23,13 @@ export default function LanguageSection() {
                     (app/hooks/useTvNavigation.ts), so it became unreachable. */}
                 <select
                     id="ui-language"
-                    value={locale}
+                    value={followsSystem ? SYSTEM_LOCALE : locale}
                     onChange={(e) => setLocale(e.target.value)}
                     data-focusable="true"
                     tabIndex={0}
                     className={`${inputClassName} max-w-[15rem]`}
                 >
+                    <option value={SYSTEM_LOCALE}>{t('settings.language.system')}</option>
                     {locales.map((l) => (
                         <option key={l.code} value={l.code}>
                             {l.label}

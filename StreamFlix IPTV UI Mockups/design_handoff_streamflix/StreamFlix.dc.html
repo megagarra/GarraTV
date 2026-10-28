@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}body{margin:0;background:#141414;color:#fff;font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit;color:inherit}button{background:none;border:none;padding:0;cursor:pointer}a{color:#fff;text-decoration:none}a:hover{color:#E50914}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#333;border-radius:4px}::-webkit-scrollbar-track{background:transparent}input::placeholder{color:#8c8c8c}option{background:#1F1F1F}</style>
+</helmet>
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="01 Login" style="position:relative;min-height:100vh;overflow:hidden;background:#000;display:flex;flex-direction:column;align-items:center;padding:28px 20px 56px">
+  <div style="position:absolute;inset:-60px;display:grid;grid-template-columns:repeat(8,1fr);gap:12px;filter:blur(5px);transform:rotate(-4deg) scale(1.15)">
+    <sc-for list="{{ mosaic }}" as="t" hint-placeholder-count="40"><div style="aspect-ratio:2/3;border-radius:6px;background:{{ t.bg }}"></div></sc-for>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.8)"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 25%,rgba(0,0,0,.9) 100%)"></div>
+  <div style="position:relative;width:100%;max-width:1240px;display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:34px;letter-spacing:.02em;color:#E50914;text-transform:uppercase">StreamFlix</div>
+    <span style="font:400 11px 'JetBrains Mono',monospace;color:#8c8c8c">fundo: mosaico de pôsteres · overlay 80%</span>
+  </div>
+  <div style="position:relative;margin-top:7vh;width:100%;max-width:450px;background:#141414;border-radius:8px;padding:44px 44px 36px;border:1px solid #262626;box-shadow:0 30px 80px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <h1 style="margin:0;font-family:'Montserrat',sans-serif;font-weight:800;font-size:28px;line-height:1.15">{{ loginTitle }}</h1>
+      <p style="margin:0;font-size:14px;color:#B3B3B3">{{ loginSub }}</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <label style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600;color:#B3B3B3">Nome da lista (opcional)</span><input placeholder="Minha lista" style="height:50px;background:#333;border:1px solid #333;border-radius:6px;padding:0 16px;color:#fff;font-size:15px;outline:none;transition:border-color 200ms,box-shadow 200ms" style-focus="border-color:#E50914;box-shadow:0 0 0 3px rgba(229,9,20,.25)"></label>
+      <sc-if value="{{ isXtream }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <label style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600;color:#B3B3B3">URL do servidor</span><input placeholder="http://servidor.com:8080" style="height:50px;background:#333;border:1px solid #333;border-radius:6px;padding:0 16px;color:#fff;font-size:15px;outline:none;transition:border-color 200ms,box-shadow 200ms" style-focus="border-color:#E50914;box-shadow:0 0 0 3px rgba(229,9,20,.25)"></label>
+          <label style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600;color:#B3B3B3">Usuário</span><input placeholder="seu_usuario" style="height:50px;background:#333;border:1px solid #333;border-radius:6px;padding:0 16px;color:#fff;font-size:15px;outline:none;transition:border-color 200ms,box-shadow 200ms" style-focus="border-color:#E50914;box-shadow:0 0 0 3px rgba(229,9,20,.25)"></label>
+          <label style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600;color:#B3B3B3">Senha</span>
+            <div style="position:relative;display:flex">
+              <input type="{{ pwType }}" placeholder="••••••••" style="flex:1;min-width:0;height:50px;background:#333;border:1px solid #333;border-radius:6px;padding:0 52px 0 16px;color:#fff;font-size:15px;outline:none;transition:border-color 200ms,box-shadow 200ms" style-focus="border-color:#E50914;box-shadow:0 0 0 3px rgba(229,9,20,.25)">
+              <button type="button" onClick="{{ togglePw }}" aria-label="Mostrar ou ocultar senha" style="position:absolute;right:6px;top:5px;width:40px;height:40px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#B3B3B3;transition:color 200ms,background 200ms" style-hover="color:#fff;background:#2A2A2A"><span style="width:20px;height:20px;display:flex">{{ pwIcon }}</span></button>
+            </div>
+          </label>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isM3u }}" hint-placeholder-val="{{ false }}">
+        <label style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600;color:#B3B3B3">URL da lista M3U</span><input placeholder="http://servidor.com/lista.m3u" style="height:50px;background:#333;border:1px solid #333;border-radius:6px;padding:0 16px;color:#fff;font-size:15px;outline:none;transition:border-color 200ms,box-shadow 200ms" style-focus="border-color:#E50914;box-shadow:0 0 0 3px rgba(229,9,20,.25)"></label>
+      </sc-if>
+    </div>
+    <button onClick="{{ goDash }}" style="height:52px;margin-top:6px;background:#E50914;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:800;letter-spacing:.14em;font-size:15px;color:#fff;transition:background 200ms,box-shadow 200ms;outline:none" style-hover="background:#B20710" style-focus="background:#B20710;box-shadow:0 0 0 3px #fff">ENTRAR</button>
+    <div style="display:flex;justify-content:center">
+      <button onClick="{{ switchLogin }}" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#B3B3B3;padding:6px 8px;border-radius:4px;transition:color 200ms" style-hover="color:#fff" style-focus="color:#fff;outline:2px solid #E50914"><span style="width:16px;height:16px;display:flex">{{ ic.link }}</span>{{ switchLabel }}</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isInner }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:#141414;display:flex;flex-direction:column">
+  <header style="height:72px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 {{ padX }};background:#000;border-bottom:1px solid #222;position:sticky;top:0;z-index:30">
+    <div style="display:flex;align-items:center;gap:16px;min-width:0">
+      <sc-if value="{{ showBack }}">
+        <button onClick="{{ backFn }}" aria-label="Voltar" style="width:40px;height:40px;flex:none;border-radius:50%;background:#1F1F1F;border:1px solid #333;display:flex;align-items:center;justify-content:center;transition:background 200ms,border-color 200ms;outline:none" style-hover="background:#2A2A2A;border-color:#E50914" style-focus="border-color:#E50914;box-shadow:0 0 0 2px #E50914"><span style="width:18px;height:18px;display:flex">{{ ic.back }}</span></button>
+      </sc-if>
+      <button onClick="{{ goDash }}" style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:24px;letter-spacing:.02em;color:#E50914;text-transform:uppercase;outline:none;border-radius:4px" style-focus="box-shadow:0 0 0 2px #E50914">StreamFlix</button>
+      <sc-if value="{{ showPageTitle }}">
+        <div style="display:flex;align-items:center;gap:16px;min-width:0"><span style="width:1px;height:24px;background:#333"></span><span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap">{{ pageTitle }}</span></div>
+      </sc-if>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <sc-if value="{{ showClock }}">
+        <div style="display:flex;align-items:center;gap:18px;margin-right:8px">
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="font-size:16px;font-weight:800;font-variant-numeric:tabular-nums">{{ timeStr }}</span><span style="font-size:12px;color:#B3B3B3;white-space:nowrap">{{ dateStr }}</span></div>
+          <div style="height:32px;display:flex;align-items:center;gap:6px;padding:0 12px;border:1px solid #333;border-radius:16px;font-size:13px;color:#B3B3B3;white-space:nowrap">Vence em: <strong style="color:#fff">15/03/2027</strong></div>
+        </div>
+      </sc-if>
+      <button aria-label="Atualizar" style="width:40px;height:40px;border-radius:50%;background:#1F1F1F;border:1px solid #333;display:flex;align-items:center;justify-content:center;transition:background 200ms,border-color 200ms;outline:none" style-hover="background:#2A2A2A;border-color:#E50914" style-focus="border-color:#E50914;box-shadow:0 0 0 2px #E50914"><span style="width:18px;height:18px;display:flex">{{ ic.refresh }}</span></button>
+      <button aria-label="Conta" style="width:40px;height:40px;border-radius:50%;background:#1F1F1F;border:1px solid #333;display:flex;align-items:center;justify-content:center;transition:background 200ms,border-color 200ms;outline:none" style-hover="background:#2A2A2A;border-color:#E50914" style-focus="border-color:#E50914;box-shadow:0 0 0 2px #E50914"><span style="width:18px;height:18px;display:flex">{{ ic.user }}</span></button>
+      <button aria-label="Configurações" style="width:40px;height:40px;border-radius:50%;background:#1F1F1F;border:1px solid #333;display:flex;align-items:center;justify-content:center;transition:background 200ms,border-color 200ms;outline:none" style-hover="background:#2A2A2A;border-color:#E50914" style-focus="border-color:#E50914;box-shadow:0 0 0 2px #E50914"><span style="width:18px;height:18px;display:flex">{{ ic.settings }}</span></button>
+    </div>
+  </header>
+
+  <sc-if value="{{ isDash }}">
+  <main data-screen-label="02 Dashboard" style="flex:1;display:flex;flex-direction:column;gap:20px;padding:{{ mainPad }};min-height:{{ dashH }}">
+    <div style="flex:1;display:grid;grid-template-columns:{{ dashCols }};grid-template-rows:{{ dashRows }};gap:20px;min-height:0">
+      <button onClick="{{ goLive }}" style="position:relative;grid-row:{{ liveSpan }};border:3px solid transparent;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#4a0a0e 0%,#1F1F1F 55%,#0a0a0a 100%);text-align:left;transition:transform 250ms,border-color 250ms,filter 250ms,box-shadow 250ms;outline:none" style-hover="transform:scale(1.05);border-color:#E50914;filter:brightness(1.18);box-shadow:0 24px 60px rgba(0,0,0,.7);z-index:2" style-focus="transform:scale(1.05);border-color:#E50914;filter:brightness(1.18);box-shadow:0 24px 60px rgba(0,0,0,.7);z-index:2">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 14px)"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.85) 0%,transparent 60%)"></div>
+        <span style="position:absolute;top:20px;right:22px;font:400 11px 'JetBrains Mono',monospace;color:#8c8c8c">imagem de fundo · tv ao vivo</span>
+        <span style="position:absolute;top:22px;left:24px;display:flex;align-items:center;gap:7px;height:26px;padding:0 10px;background:#E50914;border-radius:4px;font-size:11px;font-weight:800;letter-spacing:.12em"><span style="width:7px;height:7px;border-radius:50%;background:#fff"></span>AO VIVO</span>
+        <div style="position:absolute;left:36px;right:36px;bottom:34px;display:flex;flex-direction:column;gap:14px">
+          <span style="width:{{ bigIcon }};height:{{ bigIcon }};display:flex">{{ ic.tv }}</span>
+          <span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:{{ bigTitle }};letter-spacing:.02em;line-height:1">TV AO VIVO</span>
+          <span style="font-size:15px;color:#B3B3B3">248 canais · 12 favoritos</span>
+        </div>
+      </button>
+      <button onClick="{{ goMovies }}" style="position:relative;border:3px solid transparent;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,oklch(0.30 0.03 260) 0%,#1F1F1F 55%,#0a0a0a 100%);text-align:left;transition:transform 250ms,border-color 250ms,filter 250ms,box-shadow 250ms;outline:none" style-hover="transform:scale(1.05);border-color:#E50914;filter:brightness(1.18);box-shadow:0 24px 60px rgba(0,0,0,.7);z-index:2" style-focus="transform:scale(1.05);border-color:#E50914;filter:brightness(1.18);box-shadow:0 24px 60px rgba(0,0,0,.7);z-index:2">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 14px)"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.85) 0%,transparent 70%)"></div>
+        <span style="position:absolute;top:18px;right:20px;font:400 11px 'JetBrains Mono',monospace;color:#8c8c8c">imagem de fundo · filmes</span>
+        <div style="position:absolute;left:30px;right:30px;bottom:26px;display:flex;flex-direction:column;gap:12px">
+          <span style="width:52px;height:52px;display:flex">{{ ic.film }}</span>
+          <span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:34px;letter-spacing:.02em;line-height:1">FILMES</span>
+          <span style="font-size:14px;color:#B3B3B3">1.240 títulos</span>
+        </div>
+      </button>
+      <button onClick="{{ goSeries }}" style="position:relative;border:3px solid transparent;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,oklch(0.30 0.03 160) 0%,#1F1F1F 55%,#0a0a0a 100%);text-align:left;transition:transform 250ms,border-color 250ms,filter 250ms,box-shadow 250ms;outline:none" style-hover="transform:scale(1.05);border-color:#E50914;filter:brightness(1.18);box-shadow:0 24px 60px rgba(0,0,0,.7);z-index:2" style-focus="transform:scale(1.05);border-color:#E50914;filter:brightness(1.18);box-shadow:0 24px 60px rgba(0,0,0,.7);z-index:2">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 14px)"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.85) 0%,transparent 70%)"></div>
+        <span style="position:absolute;top:18px;right:20px;font:400 11px 'JetBrains Mono',monospace;color:#8c8c8c">imagem de fundo · séries</span>
+        <div style="position:absolute;left:30px;right:30px;bottom:26px;display:flex;flex-direction:column;gap:12px">
+          <span style="width:52px;height:52px;display:flex">{{ ic.clapper }}</span>
+          <span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:34px;letter-spacing:.02em;line-height:1">SÉRIES</span>
+          <span style="font-size:14px;color:#B3B3B3">386 séries</span>
+        </div>
+      </button>
+    </div>
+    <div style="display:grid;grid-template-columns:{{ shortCols }};gap:16px">
+      <sc-for list="{{ shortcuts }}" as="s" hint-placeholder-count="4">
+        <button onClick="{{ s.onClick }}" style="height:84px;display:flex;align-items:center;justify-content:center;gap:14px;background:#1F1F1F;border:2px solid #333;border-radius:10px;font-weight:700;font-size:16px;transition:transform 200ms,border-color 200ms,background 200ms;outline:none" style-hover="transform:scale(1.04);border-color:#E50914;background:#2A2A2A" style-focus="transform:scale(1.04);border-color:#E50914;background:#2A2A2A"><span style="width:26px;height:26px;display:flex">{{ s.icon }}</span>{{ s.label }}</button>
+      </sc-for>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isBrowse }}">
+  <div data-screen-label="{{ browseLabel }}" style="flex:1;display:grid;grid-template-columns:{{ browseCols }};min-height:0">
+    <sc-if value="{{ notMobile }}">
+      <aside style="height:{{ colH }};overflow-y:auto;overflow-x:hidden;background:#000;border-right:1px solid #222;padding:20px 12px;display:flex;flex-direction:column;gap:16px">
+        <div style="position:relative;display:flex">
+          <span style="position:absolute;left:14px;top:13px;width:18px;height:18px;display:flex;color:#8c8c8c;pointer-events:none">{{ ic.search }}</span>
+          <input value="{{ q }}" onChange="{{ onQ }}" placeholder="{{ searchPh }}" style="flex:1;min-width:0;height:44px;background:#1F1F1F;border:1px solid #333;border-radius:6px;padding:0 14px 0 42px;font-size:14px;color:#fff;outline:none;transition:border-color 200ms" style-focus="border-color:#E50914">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ cats }}" as="c" hint-placeholder-count="8">
+            <sc-if value="{{ c.divider }}"><div style="height:1px;background:#222;margin:8px 6px"></div></sc-if>
+            <button onClick="{{ c.onClick }}" style="position:relative;width:100%;display:flex;align-items:center;gap:10px;height:44px;padding:0 14px 0 18px;border-radius:4px;background:{{ c.bg }};color:{{ c.color }};font-weight:{{ c.weight }};font-size:14px;text-align:left;transition:background 200ms,color 200ms;outline:none" style-hover="background:#2A2A2A;color:#fff" style-focus="background:#2A2A2A;color:#fff;box-shadow:inset 0 0 0 2px #E50914">
+              <span style="position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:0 2px 2px 0;background:{{ c.bar }}"></span>
+              <sc-if value="{{ c.hasIcon }}"><span style="width:16px;height:16px;display:flex;flex:none">{{ c.icon }}</span></sc-if>
+              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+              <span style="font-size:12px;color:#8c8c8c;font-variant-numeric:tabular-nums">{{ c.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </aside>
+    </sc-if>
+    <sc-if value="{{ isMobile }}">
+      <div style="display:flex;flex-direction:column;gap:12px;padding:12px 16px;background:#000;border-bottom:1px solid #222;position:sticky;top:72px;z-index:20">
+        <div style="position:relative;display:flex">
+          <span style="position:absolute;left:14px;top:13px;width:18px;height:18px;display:flex;color:#8c8c8c;pointer-events:none">{{ ic.search }}</span>
+          <input value="{{ q }}" onChange="{{ onQ }}" placeholder="{{ searchPh }}" style="flex:1;min-width:0;height:44px;background:#1F1F1F;border:1px solid #333;border-radius:6px;padding:0 14px 0 42px;font-size:14px;color:#fff;outline:none" style-focus="border-color:#E50914">
+        </div>
+        <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px">
+          <sc-for list="{{ cats }}" as="c" hint-placeholder-count="6">
+            <button onClick="{{ c.onClick }}" style="flex:none;height:36px;padding:0 14px;border-radius:18px;background:{{ c.chipBg }};border:1px solid {{ c.chipBorder }};font-size:13px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:background 200ms">{{ c.name }}<span style="opacity:.7;font-size:12px;font-weight:500">{{ c.count }}</span></button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLive }}">
+      <div style="display:grid;grid-template-columns:{{ liveCols }};min-width:0">
+        <section style="height:{{ colH }};overflow-y:auto;overflow-x:hidden;border-right:1px solid #222;display:flex;flex-direction:column;order:{{ listOrder }};min-width:0">
+          <div style="position:sticky;top:0;background:#141414;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid #222">
+            <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:20px">{{ catName }}</span><span style="font-size:12px;color:#B3B3B3">{{ chCountLabel }}</span></div>
+            <div style="display:flex;padding:3px;background:#1F1F1F;border:1px solid #333;border-radius:6px;gap:2px">
+              <button onClick="{{ setListView }}" aria-label="Ver em lista" style="width:36px;height:30px;border-radius:4px;background:{{ listBtnBg }};color:{{ listBtnColor }};display:flex;align-items:center;justify-content:center;transition:background 200ms;outline:none" style-focus="box-shadow:0 0 0 2px #E50914"><span style="width:16px;height:16px;display:flex">{{ ic.list }}</span></button>
+              <button onClick="{{ setGridView }}" aria-label="Ver em grade" style="width:36px;height:30px;border-radius:4px;background:{{ gridBtnBg }};color:{{ gridBtnColor }};display:flex;align-items:center;justify-content:center;transition:background 200ms;outline:none" style-focus="box-shadow:0 0 0 2px #E50914"><span style="width:16px;height:16px;display:flex">{{ ic.grid }}</span></button>
+            </div>
+          </div>
+          <sc-if value="{{ isListView }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ channels }}" as="c" hint-placeholder-count="8">
+                <div tabIndex="0" role="button" onClick="{{ c.onClick }}" onKeyDown="{{ c.onKey }}" style="position:relative;display:flex;align-items:center;gap:14px;padding:12px 12px 12px 20px;border-bottom:1px solid #1c1c1c;background:{{ c.rowBg }};cursor:pointer;transition:background 200ms;outline:none" style-hover="background:#2A2A2A" style-focus="background:#2A2A2A;box-shadow:inset 0 0 0 2px #E50914">
+                  <span style="position:absolute;left:0;top:0;bottom:0;width:4px;background:{{ c.bar }}"></span>
+                  <span style="width:32px;flex:none;font-size:13px;color:#8c8c8c;font-variant-numeric:tabular-nums;font-weight:700">{{ c.num }}</span>
+                  <div style="width:52px;height:52px;flex:none;border-radius:6px;background:{{ c.logoBg }};display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px">{{ c.initials }}</div>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+                    <span style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</span>
+                    <span style="font-size:13px;color:#B3B3B3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.program }}</span>
+                    <div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:3px;background:#333;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ c.pctStr }};background:#E50914"></div></div><span style="font-size:11px;color:#8c8c8c;font-variant-numeric:tabular-nums">{{ c.end }}</span></div>
+                  </div>
+                  <button onClick="{{ c.onFav }}" aria-label="Favoritar" style="width:36px;height:36px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;color:{{ c.starColor }};transition:background 200ms,transform 200ms" style-hover="background:#333;transform:scale(1.1)"><span style="width:18px;height:18px;display:flex">{{ c.starIcon }}</span></button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isGridView }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px">
+              <sc-for list="{{ channels }}" as="c" hint-placeholder-count="6">
+                <div tabIndex="0" role="button" onClick="{{ c.onClick }}" onKeyDown="{{ c.onKey }}" style="position:relative;display:flex;flex-direction:column;gap:10px;padding:12px;background:#1F1F1F;border:2px solid {{ c.tileBorder }};border-radius:8px;cursor:pointer;transition:transform 200ms,border-color 200ms;outline:none" style-hover="transform:scale(1.04);border-color:#E50914" style-focus="transform:scale(1.04);border-color:#E50914">
+                  <div style="aspect-ratio:16/9;border-radius:5px;background:{{ c.logoBg }};display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px">{{ c.initials }}</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</span><span style="font-size:11px;color:#8c8c8c">{{ c.num }}</span></div>
+                  <div style="height:3px;background:#333;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ c.pctStr }};background:#E50914"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noChannels }}"><div style="padding:48px 24px;text-align:center;color:#B3B3B3;font-size:14px">Nenhum canal encontrado.</div></sc-if>
+        </section>
+
+        <section style="height:{{ colH }};overflow-y:auto;overflow-x:hidden;padding:{{ prevPad }};display:flex;flex-direction:column;gap:24px;order:{{ previewOrder }};min-width:0">
+          <div style="position:relative;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 14px),{{ sel.playerBg }};border:1px solid #222;flex:none">
+            <div style="position:absolute;top:16px;left:16px;display:flex;align-items:center;gap:10px">
+              <span style="display:flex;align-items:center;gap:6px;height:24px;padding:0 10px;background:#E50914;border-radius:4px;font-size:11px;font-weight:800;letter-spacing:.1em"><span style="width:6px;height:6px;border-radius:50%;background:#fff"></span>AO VIVO</span>
+              <span style="font-weight:700;font-size:14px;text-shadow:0 1px 4px rgba(0,0,0,.6)">{{ sel.num }} · {{ sel.name }}</span>
+            </div>
+            <span style="position:absolute;left:16px;bottom:48px;font:400 11px 'JetBrains Mono',monospace;color:rgba(255,255,255,.55)">player de vídeo 16:9</span>
+            <button aria-label="Reproduzir" style="position:absolute;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;border-radius:50%;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;transition:background 200ms,transform 200ms,border-color 200ms;outline:none" style-hover="background:#E50914;border-color:#E50914;transform:scale(1.08)" style-focus="background:#E50914;border-color:#fff"><span style="width:28px;height:28px;display:flex;margin-left:4px">{{ ic.playFill }}</span></button>
+            <div style="position:absolute;left:0;right:0;bottom:0;padding:28px 16px 12px;background:linear-gradient(0deg,rgba(0,0,0,.85),transparent);display:flex;align-items:center;gap:16px">
+              <span style="width:20px;height:20px;display:flex">{{ ic.playFill }}</span>
+              <span style="width:20px;height:20px;display:flex">{{ ic.volume }}</span>
+              <div style="flex:1;height:3px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ sel.pctStr }};background:#E50914"></div></div>
+              <span style="font-size:12px;color:#B3B3B3;font-variant-numeric:tabular-nums">{{ sel.start }} – {{ sel.end }}</span>
+              <span style="width:20px;height:20px;display:flex">{{ ic.maximize }}</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <span style="font-family:'Montserrat',sans-serif;font-size:12px;letter-spacing:.16em;color:#B3B3B3;font-weight:700">GUIA DE PROGRAMAÇÃO</span>
+              <button style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#fff;padding:4px 6px;border-radius:4px;transition:color 200ms;outline:none" style-hover="color:#E50914" style-focus="box-shadow:0 0 0 2px #E50914"><span style="width:16px;height:16px;display:flex">{{ ic.calendar }}</span>Guia completo</button>
+            </div>
+            <div style="background:#1F1F1F;border:1px solid #2A2A2A;border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;font-weight:800;letter-spacing:.14em;color:#E50914">AGORA</span><span style="font-size:13px;color:#B3B3B3;font-variant-numeric:tabular-nums">{{ sel.start }} – {{ sel.end }}</span></div>
+              <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;line-height:1.2">{{ sel.program }}</span>
+              <div style="height:4px;background:#333;border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ sel.pctStr }};background:#E50914"></div></div>
+              <p style="margin:0;font-size:14px;line-height:1.6;color:#B3B3B3;text-wrap:pretty">{{ sel.desc }}</p>
+            </div>
+            <span style="font-size:11px;font-weight:800;letter-spacing:.14em;color:#B3B3B3;margin-top:6px">A SEGUIR</span>
+            <div style="display:flex;flex-direction:column;border:1px solid #2A2A2A;border-radius:8px;overflow:hidden">
+              <sc-for list="{{ sel.next }}" as="n" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:18px;padding:14px 18px;border-bottom:1px solid #222;background:#181818">
+                  <span style="width:46px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff">{{ n.time }}</span>
+                  <span style="flex:1;min-width:0;font-size:14px;color:#B3B3B3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.title }}</span>
+                  <span style="font-size:12px;color:#8c8c8c">{{ n.dur }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
+              <button style="height:46px;padding:0 22px;display:flex;align-items:center;gap:10px;background:#E50914;border-radius:6px;font-weight:800;font-size:14px;letter-spacing:.04em;transition:background 200ms;outline:none" style-hover="background:#B20710" style-focus="background:#B20710;box-shadow:0 0 0 3px #fff"><span style="width:18px;height:18px;display:flex">{{ ic.maximize }}</span>Tela cheia</button>
+              <button style="height:46px;padding:0 22px;display:flex;align-items:center;gap:10px;background:rgba(109,109,110,.4);border-radius:6px;font-weight:700;font-size:14px;transition:background 200ms;outline:none" style-hover="background:rgba(109,109,110,.65)" style-focus="background:rgba(109,109,110,.65);box-shadow:0 0 0 2px #E50914"><span style="width:18px;height:18px;display:flex">{{ ic.history }}</span>Catch Up</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isTitles }}">
+      <section style="height:{{ colH }};overflow-y:auto;overflow-x:hidden;padding:{{ listPad }};min-width:0">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px">
+          <div style="display:flex;align-items:baseline;gap:12px"><h2 style="margin:0;font-family:'Montserrat',sans-serif;font-weight:800;font-size:28px">{{ catName }}</h2><span style="color:#B3B3B3;font-size:14px">{{ titleCountLabel }}</span></div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;color:#B3B3B3">Ordenar por</span>
+            <div style="display:flex;padding:3px;background:#1F1F1F;border:1px solid #333;border-radius:6px;gap:2px">
+              <sc-for list="{{ sorts }}" as="o" hint-placeholder-count="3">
+                <button onClick="{{ o.onClick }}" style="height:32px;padding:0 12px;border-radius:4px;background:{{ o.bg }};color:{{ o.color }};font-size:13px;font-weight:700;white-space:nowrap;transition:background 200ms,color 200ms;outline:none" style-hover="color:#fff" style-focus="box-shadow:0 0 0 2px #E50914">{{ o.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax({{ posterMin }},1fr));gap:28px 20px">
+          <sc-for list="{{ titles }}" as="t" hint-placeholder-count="12">
+            <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+              <button onClick="{{ t.onClick }}" aria-label="{{ t.title }}" style="position:relative;aspect-ratio:2/3;width:100%;border-radius:6px;overflow:hidden;background:{{ t.bg }};border:2px solid transparent;transition:transform 250ms,border-color 250ms,box-shadow 250ms;text-align:left;outline:none" style-hover="transform:scale(1.08);border-color:#E50914;box-shadow:0 18px 40px rgba(0,0,0,.75);z-index:2" style-focus="transform:scale(1.08);border-color:#E50914;box-shadow:0 18px 40px rgba(0,0,0,.75);z-index:2">
+                <span style="position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:4px;height:22px;padding:0 7px;background:rgba(0,0,0,.72);border-radius:4px;font-size:12px;font-weight:800"><span style="width:12px;height:12px;display:flex;color:#F5C451">{{ ic.starFill }}</span>{{ t.ratingStr }}</span>
+                <sc-if value="{{ t.hasTag }}"><span style="position:absolute;top:8px;left:8px;height:22px;display:flex;align-items:center;padding:0 7px;background:#E50914;border-radius:4px;font-size:11px;font-weight:800">{{ t.tag }}</span></sc-if>
+                <sc-if value="{{ showPosterTitles }}"><span style="position:absolute;left:12px;right:12px;bottom:14px;font-family:'Montserrat',sans-serif;font-weight:900;font-size:16px;line-height:1.05;text-transform:uppercase;text-wrap:balance;text-shadow:0 2px 10px rgba(0,0,0,.5)">{{ t.title }}</span></sc-if>
+              </button>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:0 2px;min-width:0"><span style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.title }}</span><span style="font-size:12px;color:#B3B3B3">{{ t.year }} · {{ t.genre }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ noTitles }}"><div style="padding:64px 0;text-align:center;color:#B3B3B3;font-size:14px">Nenhum título nesta categoria.</div></sc-if>
+      </section>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isDetail }}">
+  <div data-screen-label="06 Detalhe">
+    <section style="position:relative;min-height:{{ heroH }};display:flex;align-items:flex-end;overflow:hidden">
+      <div style="position:absolute;inset:0;background:{{ d.backdrop }}"></div>
+      <div style="position:absolute;inset:0;background:linear-gradient(90deg,#000 0%,rgba(0,0,0,.92) 30%,rgba(0,0,0,.55) 62%,rgba(0,0,0,.1) 100%)"></div>
+      <div style="position:absolute;inset:0;background:linear-gradient(0deg,#141414 0%,transparent 35%)"></div>
+      <span style="position:absolute;top:22px;right:24px;font:400 11px 'JetBrains Mono',monospace;color:rgba(255,255,255,.5)">backdrop · largura total</span>
+      <div style="position:relative;width:100%;display:flex;flex-wrap:wrap;align-items:flex-end;gap:40px;padding:{{ heroPad }}">
+        <div style="width:{{ dPosterW }};flex:none;aspect-ratio:2/3;border-radius:8px;background:{{ d.bg }};box-shadow:0 30px 60px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.08)"></div>
+        <div style="flex:1;min-width:260px;max-width:720px;display:flex;flex-direction:column;gap:18px">
+          <span style="font-size:12px;font-weight:800;letter-spacing:.2em;color:#E50914">{{ d.kind }}</span>
+          <h1 style="margin:0;font-family:'Montserrat',sans-serif;font-weight:900;font-size:{{ dTitleSize }};line-height:1;letter-spacing:-.01em;text-wrap:balance">{{ d.title }}</h1>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;font-size:15px;color:#B3B3B3">
+            <span style="display:flex;align-items:center;gap:6px;color:#fff;font-weight:800"><span style="width:16px;height:16px;display:flex;color:#F5C451">{{ ic.starFill }}</span>{{ d.ratingStr }}</span>
+            <span>{{ d.year }}</span><span>{{ d.duration }}</span>
+            <span style="padding:2px 8px;border:1px solid #555;border-radius:4px;font-size:12px;font-weight:700;color:#fff">{{ d.age }}</span>
+            <span>{{ d.genre }}</span>
+          </div>
+          <p style="margin:0;font-size:16px;line-height:1.6;color:#FFFFFF;text-wrap:pretty">{{ d.synopsis }}</p>
+          <div style="display:flex;flex-direction:column;gap:4px;font-size:14px;color:#B3B3B3"><span><span style="color:#8c8c8c">Elenco: </span>{{ d.cast }}</span><span><span style="color:#8c8c8c">Direção: </span>{{ d.director }}</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
+            <button style="height:52px;padding:0 30px;display:flex;align-items:center;gap:10px;background:#E50914;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;letter-spacing:.08em;transition:background 200ms,transform 200ms;outline:none" style-hover="background:#B20710;transform:scale(1.03)" style-focus="background:#B20710;box-shadow:0 0 0 3px #fff;transform:scale(1.03)"><span style="width:20px;height:20px;display:flex">{{ ic.playFill }}</span>ASSISTIR</button>
+            <button style="height:52px;padding:0 24px;display:flex;align-items:center;gap:10px;background:rgba(109,109,110,.45);border-radius:6px;font-weight:700;font-size:15px;transition:background 200ms,transform 200ms;outline:none" style-hover="background:rgba(109,109,110,.7);transform:scale(1.03)" style-focus="background:rgba(109,109,110,.7);box-shadow:0 0 0 2px #E50914"><span style="width:20px;height:20px;display:flex">{{ ic.video }}</span>Trailer</button>
+            <button onClick="{{ d.onFav }}" style="height:52px;padding:0 24px;display:flex;align-items:center;gap:10px;background:rgba(109,109,110,.45);border-radius:6px;font-weight:700;font-size:15px;transition:background 200ms,transform 200ms;outline:none" style-hover="background:rgba(109,109,110,.7);transform:scale(1.03)" style-focus="background:rgba(109,109,110,.7);box-shadow:0 0 0 2px #E50914"><span style="width:20px;height:20px;display:flex;color:{{ d.favColor }}">{{ d.favIcon }}</span>{{ d.favLabel }}</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <sc-if value="{{ isSeriesDetail }}">
+      <section style="padding:{{ epPad }};display:flex;flex-direction:column;gap:20px;max-width:1280px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px">
+          <h2 style="margin:0;font-family:'Montserrat',sans-serif;font-weight:800;font-size:26px">Episódios</h2>
+          <div style="position:relative;display:flex">
+            <select value="{{ seasonStr }}" onChange="{{ onSeason }}" style="height:44px;padding:0 44px 0 16px;background:#2A2A2A;border:1px solid #333;border-radius:6px;color:#fff;font-weight:700;font-size:15px;appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;transition:border-color 200ms" style-focus="border-color:#E50914">
+              <sc-for list="{{ seasons }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.label }}</option></sc-for>
+            </select>
+            <span style="position:absolute;right:14px;top:13px;width:18px;height:18px;display:flex;pointer-events:none">{{ ic.chevron }}</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ episodes }}" as="e" hint-placeholder-count="6">
+            <div tabIndex="0" role="button" style="display:flex;align-items:center;gap:20px;padding:18px 16px;border-radius:8px;border-bottom:1px solid #222;cursor:pointer;transition:background 200ms;outline:none" style-hover="background:#1F1F1F" style-focus="background:#1F1F1F;box-shadow:inset 0 0 0 2px #E50914">
+              <span style="width:32px;flex:none;font-family:'Montserrat',sans-serif;font-weight:700;font-size:26px;color:#8c8c8c;text-align:center">{{ e.n }}</span>
+              <div style="position:relative;width:{{ thumbW }};flex:none;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:{{ e.bg }};display:flex;align-items:center;justify-content:center">
+                <span style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.55);border:1.5px solid rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center"><span style="width:16px;height:16px;display:flex;margin-left:2px">{{ ic.playFill }}</span></span>
+                <sc-if value="{{ e.hasProgress }}"><div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.25)"><div style="height:100%;width:{{ e.progress }};background:#E50914"></div></div></sc-if>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px"><span style="font-weight:700;font-size:16px">{{ e.title }}</span><span style="font-size:13px;color:#B3B3B3;flex:none">{{ e.dur }}</span></div>
+                <p style="margin:0;font-size:14px;line-height:1.5;color:#B3B3B3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ e.synopsis }}</p>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+  </div>
+  </sc-if>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;login&quot;,&quot;dash&quot;,&quot;live&quot;,&quot;movies&quot;,&quot;series&quot;,&quot;detail-movie&quot;,&quot;detail-series&quot;],&quot;default&quot;:&quot;login&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;posterTitles&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const LIVE_CATS=[['Todos','248'],['Favoritos','12','star'],['Esportes','34',null,true],['Notícias','22'],['Filmes','41'],['Infantil','19'],['Documentários','16'],['Música','14'],['Variedades','30']];
+const MOVIE_CATS=[['Todos','1.240'],['Adicionados recentemente','48','clock'],['Favoritos','9','heart'],['Ação','186',null,true],['Comédia','142'],['Drama','210'],['Terror','96'],['Ficção científica','88'],['Animação','74'],['Documentário','63'],['Nacional','120']];
+const SERIES_CATS=[['Todos','386'],['Adicionados recentemente','21','clock'],['Favoritos','6','heart'],['Policial','48',null,true],['Drama','92'],['Comédia','57'],['Suspense','44'],['Ficção científica','31'],['Animação','26'],['Reality','38'],['Nacional','29']];
+const CH=[[101,'Arena Esporte 1','Esportes','Futebol: Final do Estadual','14:00','16:00',62,['Gols da Rodada','Arena Debate','Tênis: Semifinal'],5],
+[102,'Arena Esporte 2','Esportes','Basquete ao vivo: Liga Nacional','13:30','15:30',78,['Vôlei: Superliga','Resenha Esportiva','Motor Show'],20],
+[110,'Plantão 24h','Notícias','Jornal da Tarde','14:00','15:00',48,['Repórter Cidade','Economia em Pauta','Jornal da Noite'],230],
+[111,'Fala Brasil News','Notícias','Mercado & Economia','14:15','15:00',35,['Entrevista Especial','Giro Mundial','Política Hoje'],210],
+[201,'Cine Estrela','Filmes','Sessão Aventura: Rota Perdida','13:10','15:05',71,['Órbita','Noite em Lisboa','Código Vermelho'],300],
+[202,'Cine Clássicos','Filmes','Noite em Lisboa (1962)','12:40','14:50',88,['O Farol','Os Desertores','Luz de Inverno'],40],
+[301,'Planeta Kids','Infantil','Aventuras do Capitão Bolota','14:20','14:45',40,['Turma do Quintal','Robôs da Vila','Hora do Conto'],140],
+[302,'Toon Mix','Infantil','Desenhos da Tarde','14:00','15:00',52,['Super Pets','Mundo Pixel','Clube dos Inventores'],80],
+[401,'Mundo Docs','Documentários','Oceanos Desconhecidos','13:45','14:40',85,['Vozes do Amazonas','Engenharia Extrema','Cidades Perdidas'],190],
+[501,'Ritmo HD','Música','Top 20 da Semana','14:00','16:00',27,['Acústico ao Vivo','Clipes Clássicos','Festival Verão'],320],
+[601,'Viva TV','Variedades','Tarde Animada','13:00','16:00',55,['Show de Talentos','Casa & Estilo','Viva Noite'],60],
+[602,'Canal Sabor','Variedades','Cozinha em 30 Minutos','14:10','14:40',60,['Doce Lar','Feira Livre','Chef em Casa'],100]
+].map(([num,name,cat,program,start,end,pct,next,hue])=>({num,name,cat,program,start,end,pct,next,hue}));
+const DESC={'Esportes':'Transmissão ao vivo com narração, comentários e os melhores momentos da partida, direto do estádio.','Notícias':'As principais notícias do Brasil e do mundo, com análises, entrevistas e boletins ao vivo.','Filmes':'Exibição do filme na íntegra, sem cortes, com opção de áudio original e legendas.','Infantil':'Animação para toda a família com histórias divertidas sobre amizade, curiosidade e aventura.','Documentários':'Uma expedição pelas regiões mais profundas e pouco exploradas do planeta.','Música':'Os clipes mais pedidos da semana, com bastidores e entrevistas exclusivas.','Variedades':'Programa de auditório com quadros, convidados especiais e muita música.'};
+const MOVIES=[['Rota Perdida',2024,7.8,'Ação'],['O Último Horizonte',2025,8.4,'Ficção científica'],['Noite em Lisboa',2023,7.1,'Drama'],['Casa 17',2024,6.9,'Terror'],['Os Primos do Interior',2022,6.5,'Comédia'],['Maré Alta',2025,7.6,'Drama'],['Código Vermelho',2023,7.3,'Ação'],['Estrela Cadente',2024,8.0,'Animação'],['O Silêncio da Serra',2021,7.4,'Nacional'],['Ponto Cego',2025,7.0,'Ação'],['Vozes do Amazonas',2023,8.2,'Documentário'],['Plano B',2022,6.2,'Comédia'],['Órbita',2024,7.9,'Ficção científica'],['A Herdeira',2025,7.2,'Drama'],['Quarto Escuro',2022,6.8,'Terror'],['Pequenos Gigantes',2023,7.7,'Animação'],['Linha de Frente',2024,7.5,'Ação'],['Sertão Bravo',2025,7.0,'Nacional']].map(([title,year,rating,genre],i)=>({title,year,rating,genre,i,hue:(i*47+12)%360}));
+const SERIES=[['Fronteira Norte',2024,8.6,'Policial',3],['Distrito Central',2023,7.9,'Policial',2],['Os Moradores',2022,7.2,'Comédia',4],['Sinal Fraco',2025,8.1,'Suspense',1],['Colônia Marte',2024,8.3,'Ficção científica',2],['Família Andrade',2021,7.0,'Drama',5],['Café Expresso',2023,6.8,'Comédia',2],['A Ilha',2025,7.7,'Suspense',1],['Cozinha Sob Pressão',2024,7.1,'Reality',3],['Herança',2022,8.0,'Drama',3],['Robôs da Vila',2023,7.5,'Animação',2],['Rio Subterrâneo',2025,7.8,'Nacional',1],['Turno da Noite',2024,7.4,'Policial',2],['Além do Véu',2023,7.6,'Suspense',2],['Nova Era',2025,7.3,'Ficção científica',1],['Vizinhos',2021,6.9,'Comédia',3],['Corações de Pedra',2022,7.2,'Drama',2],['Mestres da Obra',2024,6.7,'Reality',2]].map(([title,year,rating,genre,seasons],i)=>({title,year,rating,genre,seasons,i,hue:(i*53+200)%360}));
+const SYN=['Após um acidente em uma estrada isolada, um grupo de desconhecidos precisa atravessar a serra antes do amanhecer, enquanto segredos do passado vêm à tona.','Uma engenheira descobre um sinal vindo de uma estação abandonada e embarca na missão que pode mudar o destino de toda a colônia.','Dois irmãos afastados há anos se reencontram para vender a casa da família e acabam revivendo memórias, mágoas e um mistério nunca resolvido.','Em uma cidade litorânea, uma detetive recém-transferida investiga uma série de desaparecimentos ligados a um antigo farol.'];
+const EP_SYN=['Uma descoberta inesperada coloca a equipe em rota de colisão com velhos aliados.','Pressionados pelo tempo, eles seguem uma pista que leva ao outro lado da fronteira.','Um interrogatório revela mais do que deveria, e alguém paga o preço.','Enquanto a cidade dorme, um plano arriscado entra em ação.'];
+const EP_T=['Piloto','Rastros','Fogo Cruzado','A Testemunha','Ponto de Virada','Sem Saída','O Acordo','Linha Tênue','Retorno','Último Ato'];
+const NAMES=['Lúcia Mendes','Rafael Duarte','Bianca Torres','Caio Ferraz','Helena Prado','Diego Amaral','Marina Lopes','Otávio Reis'];
+const DIRS=['Ana Valença','Pedro Sarmento','Júlia Castro','Marcos Teles'];
+const AGES=['14','12','16','L','18','10'];
+const ICONS={search:[['circle',{cx:11,cy:11,r:8}],['path',{d:'m21 21-4.3-4.3'}]],
+refresh:[['path',{d:'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8'}],['path',{d:'M21 3v5h-5'}],['path',{d:'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16'}],['path',{d:'M8 16H3v5'}]],
+user:[['path',{d:'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'}],['circle',{cx:12,cy:7,r:4}]],
+settings:[['path',{d:'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'}],['circle',{cx:12,cy:12,r:3}]],
+tv:[['rect',{x:2,y:7,width:20,height:15,rx:2}],['polyline',{points:'17 2 12 7 7 2'}]],
+film:[['rect',{x:3,y:3,width:18,height:18,rx:2}],['path',{d:'M7 3v18M3 7.5h4M3 12h18M3 16.5h4M17 3v18M17 7.5h4M17 16.5h4'}]],
+clapper:[['path',{d:'M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z'}],['path',{d:'m6.2 5.3 3.1 3.9M12.4 3.4l3.1 4'}],['path',{d:'M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z'}]],
+calendar:[['rect',{x:3,y:4,width:18,height:18,rx:2}],['path',{d:'M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01'}]],
+grid:[['rect',{x:3,y:3,width:7,height:7,rx:1}],['rect',{x:14,y:3,width:7,height:7,rx:1}],['rect',{x:14,y:14,width:7,height:7,rx:1}],['rect',{x:3,y:14,width:7,height:7,rx:1}]],
+history:[['path',{d:'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8'}],['path',{d:'M3 3v5h5'}],['path',{d:'M12 7v5l4 2'}]],
+heart:[['path',{d:'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z'}]],
+heartFill:[['path',{d:'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z',fill:'currentColor'}]],
+star:[['polygon',{points:'12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'}]],
+starFill:[['polygon',{points:'12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2',fill:'currentColor'}]],
+eye:[['path',{d:'M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z'}],['circle',{cx:12,cy:12,r:3}]],
+eyeOff:[['path',{d:'M9.88 9.88a3 3 0 1 0 4.24 4.24'}],['path',{d:'M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68'}],['path',{d:'M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61'}],['path',{d:'M2 2l20 20'}]],
+back:[['path',{d:'m12 19-7-7 7-7'}],['path',{d:'M19 12H5'}]],
+playFill:[['polygon',{points:'6 3 20 12 6 21 6 3',fill:'currentColor'}]],
+list:[['path',{d:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'}]],
+chevron:[['path',{d:'m6 9 6 6 6-6'}]],
+volume:[['polygon',{points:'11 5 6 9 2 9 2 15 6 15 11 19 11 5'}],['path',{d:'M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14'}]],
+maximize:[['path',{d:'M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3'}]],
+clock:[['circle',{cx:12,cy:12,r:10}],['polyline',{points:'12 6 12 12 16 14'}]],
+video:[['path',{d:'m16 13 5.22 3.48a.5.5 0 0 0 .78-.42V7.87a.5.5 0 0 0-.75-.43L16 10.5'}],['rect',{x:2,y:6,width:14,height:12,rx:2}]],
+link:[['path',{d:'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'}],['path',{d:'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'}]]};
+const posterBg=h=>`repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 10px),radial-gradient(120% 70% at 30% 18%,oklch(0.55 0.12 ${h} / .85),transparent 62%),linear-gradient(170deg,oklch(0.34 0.08 ${h}),oklch(0.13 0.02 ${h}))`;
+const addMin=(t,m)=>{const[h,mm]=t.split(':').map(Number);const x=(h*60+mm+m)%1440;return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0')};
+
+class Component extends DCLogic {
+  state = { screen:'login', loginMode:'xtream', showPw:false, liveCat:'Todos', movieCat:'Todos', seriesCat:'Todos', ch:101, liveView:'list', sort:'az', q:'', detail:{type:'series',i:0}, season:1, favs:{c101:true,c201:true,c401:true,m1:true,s0:true}, now:new Date(), w:window.innerWidth };
+  componentDidMount(){
+    this.applyStart();
+    this._t=setInterval(()=>this.setState({now:new Date()}),15000);
+    this._r=()=>this.setState({w:window.innerWidth}); window.addEventListener('resize',this._r);
+    this._k=e=>this.spatial(e); window.addEventListener('keydown',this._k);
+  }
+  componentWillUnmount(){clearInterval(this._t);window.removeEventListener('resize',this._r);window.removeEventListener('keydown',this._k)}
+  componentDidUpdate(p){ if(p.startScreen!==this.props.startScreen) this.applyStart(); }
+  applyStart(){
+    const v=this.props.startScreen??'login';
+    if(v==='detail-movie') this.setState({screen:'detail',detail:{type:'movie',i:1}});
+    else if(v==='detail-series') this.setState({screen:'detail',detail:{type:'series',i:0},season:1});
+    else this.setState({screen:v});
+  }
+  spatial(e){
+    const D={ArrowRight:[1,0],ArrowLeft:[-1,0],ArrowDown:[0,1],ArrowUp:[0,-1]}[e.key]; if(!D) return;
+    const a=document.activeElement;
+    if(a&&((a.tagName==='INPUT'&&D[1]===0)||a.tagName==='SELECT')) return;
+    const els=[...document.querySelectorAll('button,input,select,[tabindex="0"]')].filter(el=>el.offsetParent!==null);
+    if(!a||a===document.body){els[0]&&els[0].focus();e.preventDefault();return}
+    const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    let best=null,bd=1e9;
+    for(const el of els){ if(el===a||a.contains(el)) continue; const b=el.getBoundingClientRect(); const x=b.left+b.width/2-cx,y=b.top+b.height/2-cy; const along=x*D[0]+y*D[1]; if(along<=4) continue; const s=along+Math.abs(x*D[1]-y*D[0])*2; if(s<bd){bd=s;best=el} }
+    if(best){best.focus();e.preventDefault()}
+  }
+  icons(){
+    if(this._ic) return this._ic;
+    const mk=n=>React.createElement('svg',{viewBox:'0 0 24 24',width:'100%',height:'100%',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'},ICONS[n].map(([t,a],i)=>React.createElement(t,{key:i,...a})));
+    this._ic={}; Object.keys(ICONS).forEach(k=>this._ic[k]=mk(k)); return this._ic;
+  }
+  toggleFav(k){this.setState(s=>({favs:{...s.favs,[k]:!s.favs[k]}}))}
+  renderVals(){
+    const s=this.state, m=s.w<820, ic=this.icons(), scr=s.screen;
+    const go=(screen,extra)=>()=>this.setState({screen,q:'',...(extra||{})});
+    const isLive=scr==='live',isMovies=scr==='movies',isSeries=scr==='series',isDetail=scr==='detail',isDash=scr==='dash';
+    const fav=k=>!!s.favs[k];
+    let defs,activeCat,catKey;
+    if(isLive){defs=LIVE_CATS;activeCat=s.liveCat;catKey='liveCat'} else if(isSeries){defs=SERIES_CATS;activeCat=s.seriesCat;catKey='seriesCat'} else {defs=MOVIE_CATS;activeCat=s.movieCat;catKey='movieCat'}
+    const cats=defs.map(([name,count,icon,divider])=>{const a=name===activeCat;return{name,count,divider:!!divider,hasIcon:!!icon,icon:icon?ic[icon]:null,onClick:()=>this.setState({[catKey]:name}),bg:a?'#2A2A2A':'transparent',bar:a?'#E50914':'transparent',color:a?'#FFFFFF':'#B3B3B3',weight:a?700:500,chipBg:a?'#E50914':'#1F1F1F',chipBorder:a?'#E50914':'#333333'}});
+    const q=s.q.trim().toLowerCase();
+    const chs=CH.filter(c=>activeCat==='Todos'||(activeCat==='Favoritos'?fav('c'+c.num):c.cat===activeCat)).filter(c=>!q||c.name.toLowerCase().includes(q)||c.program.toLowerCase().includes(q));
+    const selNum=chs.find(c=>c.num===s.ch)?s.ch:(chs[0]?chs[0].num:s.ch);
+    const lb=h=>`linear-gradient(135deg,oklch(0.46 0.13 ${h}),oklch(0.24 0.06 ${h}))`;
+    const channels=chs.map(c=>{const a=c.num===selNum,f=fav('c'+c.num);const pick=()=>this.setState({ch:c.num});return{...c,initials:c.name.split(' ').filter(w=>/^[A-Z0-9]/.test(w)).map(w=>w[0]).join('').slice(0,3),logoBg:lb(c.hue),pctStr:c.pct+'%',rowBg:a?'#2A2A2A':'transparent',bar:a?'#E50914':'transparent',tileBorder:a?'#E50914':'#2A2A2A',starIcon:f?ic.starFill:ic.star,starColor:f?'#E50914':'#777777',onClick:pick,onKey:e=>{if(e.key==='Enter')pick()},onFav:e=>{e.stopPropagation();this.toggleFav('c'+c.num)}}});
+    const sc=CH.find(c=>c.num===selNum);
+    let t=sc.end; const durs=[60,45,90];
+    const sel={...sc,pctStr:sc.pct+'%',desc:DESC[sc.cat],playerBg:`radial-gradient(80% 80% at 70% 30%,oklch(0.38 0.08 ${sc.hue}),#0a0a0a 75%)`,next:sc.next.map((title,i)=>{const r={time:t,title,dur:durs[i]+' min'};t=addMin(t,durs[i]);return r})};
+    const isT=isMovies||isSeries, src=isSeries?SERIES:MOVIES, pre=isSeries?'s':'m';
+    let list=src.filter(x=>activeCat==='Todos'||(activeCat==='Adicionados recentemente'?x.year>=2025:activeCat==='Favoritos'?fav(pre+x.i):x.genre===activeCat)).filter(x=>!q||x.title.toLowerCase().includes(q));
+    list=[...list].sort(s.sort==='az'?(a,b)=>a.title.localeCompare(b.title,'pt'):s.sort==='recent'?(a,b)=>b.year-a.year:(a,b)=>b.rating-a.rating);
+    const titles=list.map(x=>({...x,bg:posterBg(x.hue),ratingStr:x.rating.toFixed(1),hasTag:isSeries,tag:x.seasons+(x.seasons>1?' temp.':' temp.'),onClick:()=>this.setState({screen:'detail',detail:{type:isSeries?'series':'movie',i:x.i},season:1})}));
+    const sorts=[['az','A-Z'],['recent','Mais recentes'],['rating','Avaliação']].map(([k,label])=>({label,onClick:()=>this.setState({sort:k}),bg:s.sort===k?'#2A2A2A':'transparent',color:s.sort===k?'#FFFFFF':'#B3B3B3'}));
+    const dt=s.detail, isSer=dt.type==='series', it=isSer?SERIES[dt.i]:MOVIES[dt.i], fk=(isSer?'s':'m')+it.i, fv=fav(fk);
+    const d={...it,kind:isSer?'SÉRIE':'FILME',bg:posterBg(it.hue),backdrop:`repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 2px,transparent 2px 16px),radial-gradient(70% 90% at 75% 35%,oklch(0.5 0.12 ${it.hue}),oklch(0.16 0.03 ${it.hue}) 70%)`,ratingStr:it.rating.toFixed(1),duration:isSer?`${it.seasons} temporada${it.seasons>1?'s':''}`:`${1+(it.i%2)}h ${String(10+(it.i*7)%50).padStart(2,'0')}min`,age:AGES[it.i%6],synopsis:SYN[it.i%4],cast:[0,1,2,3].map(k=>NAMES[(it.i+k*3)%8]).join(', '),director:DIRS[it.i%4],favIcon:fv?ic.heartFill:ic.heart,favColor:fv?'#E50914':'#FFFFFF',favLabel:fv?'Favoritado':'Favoritar',onFav:()=>this.toggleFav(fk)};
+    const seasons=isSer?Array.from({length:it.seasons},(_,k)=>({v:String(k+1),label:`Temporada ${k+1}`})):[];
+    const episodes=Array.from({length:8},(_,k)=>({n:k+1,title:EP_T[(k+(s.season-1)*3)%10],dur:(42+((k*5+s.season*3+it.i)%17))+' min',synopsis:EP_SYN[(k+s.season)%4],bg:`repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 10px),linear-gradient(135deg,oklch(0.38 0.07 ${(it.hue+k*18)%360}),oklch(0.15 0.02 ${it.hue}))`,hasProgress:s.season===1&&k<2,progress:k===0?'100%':'45%'}));
+    const titleMap={live:'TV ao vivo',movies:'Filmes',series:'Séries',detail:isSer?'Séries':'Filmes'};
+    const lv=s.liveView==='list';
+    return {
+      ic, isLogin:scr==='login', isInner:scr!=='login', isDash, isLive, isDetail, isTitles:isT, isBrowse:isLive||isT,
+      browseLabel:isLive?'03 TV ao vivo':isMovies?'04 Filmes':'05 Séries',
+      isMobile:m, notMobile:!m, showClock:s.w>=1100,
+      mosaic:Array.from({length:48},(_,i)=>({bg:posterBg((i*29)%360)})),
+      isXtream:s.loginMode==='xtream', isM3u:s.loginMode==='m3u',
+      loginTitle:s.loginMode==='xtream'?'Entrar com Xtream Codes':'Entrar com lista M3U',
+      loginSub:s.loginMode==='xtream'?'Use os dados de acesso enviados pelo seu provedor.':'Cole o link da sua lista de reprodução.',
+      switchLabel:s.loginMode==='xtream'?'Entrar com lista M3U':'Entrar com Xtream Codes',
+      switchLogin:()=>this.setState({loginMode:s.loginMode==='xtream'?'m3u':'xtream'}),
+      pwType:s.showPw?'text':'password', pwIcon:s.showPw?ic.eyeOff:ic.eye, togglePw:()=>this.setState({showPw:!s.showPw}),
+      goDash:go('dash'), goLive:go('live'), goMovies:go('movies'), goSeries:go('series'),
+      showBack:!isDash, backFn:isDetail?go(isSer?'series':'movies'):go('dash'),
+      showPageTitle:!isDash&&!m, pageTitle:titleMap[scr]||'',
+      timeStr:s.now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+      dateStr:s.now.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}),
+      padX:m?'16px':'40px', mainPad:m?'16px':'28px 40px 32px', dashH:m?'auto':'calc(100vh - 72px)',
+      dashCols:m?'1fr':'minmax(0,1.25fr) minmax(0,1fr)', dashRows:m?'240px 200px 200px':'minmax(220px,1fr) minmax(220px,1fr)', liveSpan:m?'auto':'span 2',
+      bigIcon:m?'56px':'88px', bigTitle:m?'36px':'56px', shortCols:m?'1fr 1fr':'repeat(4,minmax(0,1fr))',
+      shortcuts:[{label:'Guia (EPG)',icon:ic.calendar,onClick:go('live')},{label:'Multi-tela',icon:ic.grid,onClick:go('live')},{label:'Catch Up',icon:ic.history,onClick:go('live')},{label:'Favoritos',icon:ic.heart,onClick:go('live',{liveCat:'Favoritos'})}],
+      browseCols:m?'1fr':'minmax(240px,20fr) minmax(0,80fr)', colH:m?'auto':'calc(100vh - 72px)',
+      cats, q:s.q, onQ:e=>this.setState({q:e.target.value}), searchPh:isLive?'Buscar canal ou programa':isSeries?'Buscar séries':'Buscar filmes',
+      catName:activeCat,
+      liveCols:m?'1fr':'minmax(0,35fr) minmax(0,45fr)', listOrder:m?2:0, previewOrder:m?1:0, prevPad:m?'16px':'24px 28px 40px',
+      chCountLabel:`${chs.length} ${chs.length===1?'canal':'canais'}`,
+      channels, noChannels:chs.length===0, sel,
+      isListView:lv, isGridView:!lv,
+      setListView:()=>this.setState({liveView:'list'}), setGridView:()=>this.setState({liveView:'grid'}),
+      listBtnBg:lv?'#333333':'transparent', gridBtnBg:lv?'transparent':'#333333', listBtnColor:lv?'#FFFFFF':'#8c8c8c', gridBtnColor:lv?'#8c8c8c':'#FFFFFF',
+      listPad:m?'20px 16px 40px':'28px 36px 48px', posterMin:m?'120px':'160px',
+      titles, noTitles:titles.length===0, titleCountLabel:`${titles.length} títulos`, sorts,
+      showPosterTitles:this.props.posterTitles??true,
+      d, isSeriesDetail:isSer, heroH:m?'auto':'600px', heroPad:m?'120px 16px 32px':'120px 56px 56px', dPosterW:m?'140px':'250px', dTitleSize:m?'36px':'60px',
+      seasons, seasonStr:String(s.season), onSeason:e=>this.setState({season:Number(e.target.value)}),
+      episodes, epPad:m?'16px':'8px 56px 64px', thumbW:m?'120px':'210px'
+    };
+  }
+}
+</script>
+</body>
+</html>

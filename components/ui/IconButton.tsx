@@ -13,10 +13,11 @@ export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
 }
 
 const VARIANT_CLASSNAME: Record<ButtonVariant, string> = {
-    primary: 'bg-ink text-bg',
-    secondary: 'bg-surface-2 text-ink border border-line',
-    ghost: 'text-ink-2 hover:text-ink',
-    danger: 'bg-surface-2 text-brand border border-line',
+    // StreamFlix: solid red primary, translucent grey secondary.
+    primary: 'bg-brand text-white hover:bg-brand-strong focus:bg-brand-strong',
+    secondary: 'bg-[rgba(109,109,110,0.45)] text-ink hover:bg-[rgba(109,109,110,0.7)] focus:bg-[rgba(109,109,110,0.7)]',
+    ghost: 'text-ink-2 hover:text-ink focus:text-ink',
+    danger: 'bg-surface-2 text-brand border border-line-strong hover:bg-surface-3',
 };
 
 const SIZE_CLASSNAME: Record<ButtonSize, string> = {

@@ -7,7 +7,8 @@ import en from './translations/en.json';
  * Adding a language is one JSON file under `translations/` plus one entry in
  * `LOCALES` below — nothing else. `pt-BR.json` is the source of truth for the
  * key set; every other file mirrors its shape (a missing key falls back to the
- * pt-BR string, then to the raw key).
+ * pt-BR string, then to the raw key). Which locale is *shown* is a separate
+ * question: the system language, else English (`DEFAULT_LOCALE`).
  */
 export type Messages = typeof ptBR;
 
@@ -19,14 +20,17 @@ export interface LocaleEntry {
     messages: Messages;
 }
 
-/** App default: the fallback for a missing translation key and an invalid saved choice. */
-export const DEFAULT_LOCALE = 'pt-BR';
-
 /**
- * First-run fallback when the browser's language matches no supported locale.
- * English, not the app default — a non-Portuguese speaker reads it more easily.
+ * Locale when the system language matches no supported one, or a saved choice is
+ * invalid. The app follows the system language; English is the widest fallback.
  */
-export const AUTODETECT_FALLBACK_LOCALE = 'en';
+export const DEFAULT_LOCALE = 'en';
+
+/** Kept as an alias: auto-detection and the app default are the same thing now. */
+export const AUTODETECT_FALLBACK_LOCALE = DEFAULT_LOCALE;
+
+/** Language picker value meaning "follow the system language" (nothing saved). */
+export const SYSTEM_LOCALE = 'system';
 
 export const LOCALES: LocaleEntry[] = [
     { code: 'pt-BR', label: 'Português (Brasil)', messages: ptBR },
@@ -68,8 +72,7 @@ export function matchLocale(tags: readonly string[]): string | null {
 
 /**
  * Best supported locale for an `Accept-Language` header (tags ranked by q-value).
- * Falls back to English when nothing matches or the header is absent — the app
- * default (pt-BR) is only used once the user has actually chosen it.
+ * Falls back to English when nothing matches or the header is absent.
  */
 export function localeFromAcceptLanguage(header: string | null | undefined): string {
     if (!header) return AUTODETECT_FALLBACK_LOCALE;
@@ -109,9 +112,16 @@ export function translate(messages: Messages, key: string, vars?: Vars): string 
     );
 }
 
+/** Best supported locale for the browser's own language list (`navigator.languages`). */
+export function localeFromNavigator(): string {
+    if (typeof navigator === 'undefined') return DEFAULT_LOCALE;
+    const tags = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+    return matchLocale(tags.filter(Boolean)) ?? DEFAULT_LOCALE;
+}
+
 /**
  * Server-side translation for API routes. They cannot use the React context, so
- * they read the locale straight off the request cookie. Falls back to pt-BR.
+ * they read the locale straight off the request cookie. Falls back to English.
  */
 export function translateForRequest(
     request: { cookies: { get(name: string): { value: string } | undefined } },

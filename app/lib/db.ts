@@ -66,6 +66,24 @@ export const getStreamCount = async (type?: ContentType): Promise<number> => {
     return await requestCache<number>('getStreamCount', { type }) ?? 0;
 };
 
+export const getCategoryCounts = async (type: ContentType): Promise<{ category_id: string; total: number }[]> => {
+    return await requestCache<{ category_id: string; total: number }[]>('getCategoryCounts', { type }) ?? [];
+};
+
+export const listStreams = async (
+    type: ContentType,
+    categoryId: string | undefined,
+    limit: number,
+    offset: number,
+    order: 'name' | 'rating' = 'name',
+): Promise<CachedStream[]> => {
+    return await requestCache<CachedStream[]>('listStreams', { type, categoryId, limit, offset, order }) ?? [];
+};
+
+export const getRecentStreams = async (type: ContentType, limit = 60): Promise<CachedStream[]> => {
+    return await requestCache<CachedStream[]>('getRecentStreams', { type, limit }) ?? [];
+};
+
 export const getStreamsByIds = async (ids: (string | number)[], type?: ContentType): Promise<CachedStream[]> => {
     return await requestCache<CachedStream[]>('getStreamsByIds', { ids, type }) ?? [];
 };

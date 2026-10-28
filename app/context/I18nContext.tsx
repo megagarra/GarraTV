@@ -5,7 +5,10 @@ import {
     DEFAULT_LOCALE,
     LOCALES,
     LOCALE_COOKIE,
+    SYSTEM_LOCALE,
     getMessages,
+    isSupportedLocale,
+    localeFromNavigator,
     resolveLocale,
     translate,
 } from '../lib/i18n';
@@ -19,7 +22,10 @@ interface I18nState {
     locales: { code: string; label: string }[];
     /** Translate a dot-path key, interpolating `{name}` placeholders. */
     t: (key: string, vars?: Vars) => string;
+    /** A locale code, or `SYSTEM_LOCALE` to drop the saved choice and follow the system. */
     setLocale: (code: string) => void;
+    /** True while no language was picked by hand, so the system language applies. */
+    followsSystem: boolean;
 }
 
 const I18nContext = createContext<I18nState | undefined>(undefined);
@@ -37,6 +43,28 @@ function persistLocale(code: string) {
     }
 }
 
+function clearSavedLocale() {
+    document.cookie = `${LOCALE_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+    try {
+        localStorage.removeItem(LOCALE_COOKIE);
+    } catch {
+        /* ignore */
+    }
+}
+
+/** The hand-picked locale, if any, from the cookie or its localStorage mirror. */
+function readSavedLocale(): string | null {
+    const match = new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`).exec(document.cookie);
+    if (match && isSupportedLocale(match[1])) return match[1];
+    try {
+        const stored = localStorage.getItem(LOCALE_COOKIE);
+        if (isSupportedLocale(stored)) return stored;
+    } catch {
+        /* ignore */
+    }
+    return null;
+}
+
 export function I18nProvider({
     initialLocale,
     children,
@@ -46,17 +74,18 @@ export function I18nProvider({
     children: ReactNode;
 }) {
     const [locale, setLocaleState] = useState(() => resolveLocale(initialLocale ?? DEFAULT_LOCALE));
+    const [followsSystem, setFollowsSystem] = useState(true);
 
-    // The packaged TV client may not have sent a cookie; reconcile with the
-    // localStorage mirror once, after hydration, to avoid a mismatch.
+    // After hydration: a hand-picked locale wins; otherwise the system language.
+    // The server already guessed from Accept-Language, but the packaged TV client
+    // is never server-rendered, so navigator.languages is the source there.
     useEffect(() => {
-        try {
-            const stored = localStorage.getItem(LOCALE_COOKIE);
-            if (stored && stored !== locale) {
-                setLocaleState(resolveLocale(stored));
-            }
-        } catch {
-            /* ignore */
+        const saved = readSavedLocale();
+        const next = saved ?? localeFromNavigator();
+        setFollowsSystem(saved === null);
+        if (next !== locale) {
+            setLocaleState(next);
+            document.documentElement.lang = next;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -69,8 +98,16 @@ export function I18nProvider({
     );
 
     const setLocale = useCallback((code: string) => {
-        const next = resolveLocale(code);
-        persistLocale(next);
+        let next: string;
+        if (code === SYSTEM_LOCALE) {
+            clearSavedLocale();
+            next = localeFromNavigator();
+            setFollowsSystem(true);
+        } else {
+            next = resolveLocale(code);
+            persistLocale(next);
+            setFollowsSystem(false);
+        }
         setLocaleState(next);
         document.documentElement.lang = next;
     }, []);
@@ -81,8 +118,9 @@ export function I18nProvider({
             locales: LOCALES.map(({ code, label }) => ({ code, label })),
             t,
             setLocale,
+            followsSystem,
         }),
-        [locale, t, setLocale]
+        [locale, t, setLocale, followsSystem]
     );
 
     return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

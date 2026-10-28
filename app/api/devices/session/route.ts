@@ -51,10 +51,10 @@ export async function GET(request: Request) {
         const device = token ? authenticateToken(token) : null;
 
         if (!device) {
-            return redirectTo(request, '/?deviceAuth=invalid');
+            return redirectTo(request, '/streamflix?deviceAuth=invalid');
         }
 
-        const response = redirectTo(request, '/dashboard');
+        const response = redirectTo(request, '/streamflix/home');
 
         // The remote-access session is signed with the PIN hash: with no PIN configured
         // there is nothing to sign, and the gate is not active either, so skip it.
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     } catch (error) {
         // Never include the request URL here: it carries the device token.
         console.error('[Devices] Failed to open device session', error);
-        return redirectTo(request, '/?deviceAuth=invalid');
+        return redirectTo(request, '/streamflix?deviceAuth=invalid');
     }
 }
 

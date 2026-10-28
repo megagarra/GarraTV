@@ -74,7 +74,7 @@ function DeviceRow({
     };
 
     return (
-        <li ref={rowRef} className="flex items-center justify-between bg-surface border border-line rounded-xl p-4">
+        <li ref={rowRef} className="flex items-center justify-between bg-surface border border-line rounded-lg p-4">
             <div className="flex items-center min-w-0 space-x-3">
                 <MonitorSmartphone size={20} className="flex-shrink-0 text-ink-2" />
                 <div className="min-w-0">
@@ -301,7 +301,7 @@ export default function DevicesPage() {
     }
 
     return (
-        <div className="px-6 md:px-10 lg:px-14 pt-6 pb-10">
+        <div className="px-4 md:px-10 pt-7 pb-12">
             <SectionHeader
                 title={t('devices.title')}
                 description={t('devices.intro', { n: CODE_LENGTH })}
@@ -310,7 +310,7 @@ export default function DevicesPage() {
             {currentDeviceId && (
                 <section className="mt-8 pt-8 border-t border-line">
                     <SectionHeader title={t('devices.thisTv')} />
-                    <div className="bg-surface-2 border border-line rounded-xl p-5 flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div className="bg-surface-2 border border-line rounded-lg p-5 flex flex-col md:flex-row md:items-center md:justify-between">
                         <div className="flex items-start space-x-3">
                             <Badge tone="warn">{t('devices.sessionActive')}</Badge>
                             <div>

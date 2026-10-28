@@ -127,7 +127,7 @@ function SessionCard({
             onClick={() => onSelect(session)}
             data-focusable="true"
             tabIndex={0}
-            className="text-left bg-surface-2 border border-line rounded-xl overflow-hidden"
+            className="text-left bg-surface border border-line rounded-lg overflow-hidden"
         >
             <div className="ratio ratio-wide bg-bg">
                 <div className="ratio-fill flex items-center justify-center">
@@ -269,7 +269,7 @@ export default function ModoTvPage() {
     };
 
     return (
-        <div className="px-6 md:px-10 lg:px-14 pt-6 pb-10">
+        <div className="px-4 md:px-10 pt-7 pb-12">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
                 <SectionHeader
                     title={t('tv.title')}

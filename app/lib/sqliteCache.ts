@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import type { CachedCategory, CachedStream, ContentType, SyncMetadata } from './dbTypes';
+import { parseAddedAt } from './catalogItem';
 import { foldForSearch } from './searchText';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -518,6 +519,53 @@ export function getStreamDates(type: ContentType): { id: string; added?: string;
         added: row.added ?? undefined,
         last_modified: row.last_modified ?? undefined,
     }));
+}
+
+export function getCategoryCounts(type: ContentType): { category_id: string; total: number }[] {
+    return getConnection()
+        .prepare('SELECT category_id, COUNT(*) AS total FROM streams WHERE type = ? GROUP BY category_id')
+        .all(type) as { category_id: string; total: number }[];
+}
+
+/** A page of the real catalog. `added` ordering is epoch-seconds only; mixed ISO dates belong in `getRecentStreams`. */
+export function listStreams(
+    type: ContentType,
+    categoryId: string | undefined,
+    limit: number,
+    offset: number,
+    order: 'name' | 'rating' = 'name',
+): CachedStream[] {
+    const safeLimit = Math.min(Math.max(limit, 1), 200);
+    const safeOffset = Math.max(offset, 0);
+    const orderSql = order === 'rating'
+        ? 'CAST(rating AS REAL) DESC, name COLLATE NOCASE'
+        : 'name COLLATE NOCASE';
+    const sql = categoryId
+        ? `SELECT ${streamColumns} FROM streams WHERE type = ? AND category_id = ? ORDER BY ${orderSql} LIMIT ? OFFSET ?`
+        : `SELECT ${streamColumns} FROM streams WHERE type = ? ORDER BY ${orderSql} LIMIT ? OFFSET ?`;
+    const rows = categoryId
+        ? getConnection().prepare(sql).all(type, categoryId, safeLimit, safeOffset) as StreamRow[]
+        : getConnection().prepare(sql).all(type, safeLimit, safeOffset) as StreamRow[];
+
+    return rows.map(rowToStream);
+}
+
+/** Newest titles by the provider's added/modified stamp, not a fabricated "recent" shelf. */
+export function getRecentStreams(type: ContentType, limit = 60): CachedStream[] {
+    const safeLimit = Math.min(Math.max(limit, 1), 200);
+    const ranked = getStreamDates(type)
+        .map((row) => ({ id: row.id, at: parseAddedAt(row.last_modified ?? row.added) }))
+        .filter((row) => row.at > 0)
+        .sort((a, b) => b.at - a.at)
+        .slice(0, safeLimit);
+
+    const byId = new Map(
+        getStreamsByIds(ranked.map((row) => row.id), type).map((stream) => [String(stream.id), stream]),
+    );
+
+    return ranked
+        .map((row) => byId.get(row.id))
+        .filter((stream): stream is CachedStream => stream !== undefined);
 }
 
 export function getStreamCount(type?: ContentType): number {

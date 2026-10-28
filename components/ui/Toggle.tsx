@@ -30,7 +30,7 @@ export default function Toggle({ checked, onChange, label, description, disabled
                     'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
                     'disabled:opacity-40 disabled:cursor-not-allowed',
                     // State is carried by position AND color — color alone fails at 3m.
-                    checked ? 'bg-ok' : 'bg-surface-3',
+                    checked ? 'bg-brand' : 'bg-surface-3',
                 ].join(' ')}
             >
                 <span

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { enforceApiAccess } from '@/app/lib/apiAuth';
 import { buildUpstreamLiveUrl, getAllowedOrigin } from '@/app/lib/liveShare';
+import { findFreeChannel } from '@/app/lib/freeChannels';
 
 export const runtime = 'nodejs';
 
@@ -143,12 +144,23 @@ async function resolveTarget(request: Request): Promise<{ url: string } | { erro
     const src = searchParams.get('src');
     const streamId = searchParams.get('streamId');
     const type = searchParams.get('type');
+    const freeId = searchParams.get('free');
 
-    const accountOrigin = await getAllowedOrigin();
-    if (!accountOrigin) {
-        return { error: NextResponse.json({ error: 'Conta não configurada' }, { status: 503 }) };
+    // Free tier: the id is resolved against the server-side iptv-org list, so a
+    // guest can only open channels from that list, never an arbitrary URL.
+    if (freeId) {
+        const channel = await findFreeChannel(freeId);
+        if (!channel) {
+            return { error: NextResponse.json({ error: 'Canal não encontrado' }, { status: 404 }) };
+        }
+        allowedOrigins.add(new URL(channel.url).origin);
+        return { url: channel.url };
     }
-    allowedOrigins.add(accountOrigin);
+
+    // Guests have no account; their segment requests are covered by the origins
+    // the free playlists above already allowlisted.
+    const accountOrigin = await getAllowedOrigin();
+    if (accountOrigin) allowedOrigins.add(accountOrigin);
 
     if (src) {
             // Open-proxy guard: only relay the account origin or the CDNs it redirects to.
@@ -165,6 +177,9 @@ async function resolveTarget(request: Request): Promise<{ url: string } | { erro
     }
 
     if (streamId && type === 'live') {
+        if (!accountOrigin) {
+            return { error: NextResponse.json({ error: 'Conta não configurada' }, { status: 503 }) };
+        }
         const upstream = await buildUpstreamLiveUrl(streamId);
         if (!upstream) {
             return { error: NextResponse.json({ error: 'Conta não configurada' }, { status: 503 }) };

@@ -93,14 +93,14 @@ export default function Modal({
             <div
                 ref={cardRef}
                 className={[
-                    'w-full bg-surface-2 border border-line rounded-xl p-6 max-h-[90vh] overflow-y-auto',
+                    'w-full bg-bg border border-line rounded-lg p-6 md:p-8 max-h-[90vh] overflow-y-auto shadow-[0_30px_80px_rgba(0,0,0,0.7)]',
                     SIZE_CLASSNAME[size],
                 ].join(' ')}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between mb-4">
                     <div>
-                        <h2 className="text-lg md:text-xl font-semibold text-ink">{title}</h2>
+                        <h2 className="font-display text-lg md:text-xl font-extrabold text-ink">{title}</h2>
                         {description && <p className="text-xs md:text-sm text-ink-2 mt-1">{description}</p>}
                     </div>
                     <IconButton icon={X} label={t('modal.close')} onClick={onClose} className="focus-flat" />

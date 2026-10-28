@@ -10,6 +10,7 @@ export interface CatalogItem {
     addedAt: number;
     containerExtension?: string;
     releaseDate?: string;
+    genre?: string;
     href: string;
 }
 
@@ -47,9 +48,10 @@ function parseRating(stream: CachedStream): number | undefined {
     return Number.isNaN(parsed) ? undefined : parsed;
 }
 
+// VOD opens the StreamFlix detail screen; live goes straight to the player.
 function buildHref(type: ContentType, id: string): string {
-    const segment = type === 'live' ? 'live' : type === 'movie' ? 'movie' : 'series';
-    return `/dashboard/watch/${segment}/${id}`;
+    if (type === 'live') return `/dashboard/watch/live/${id}`;
+    return `/streamflix/title/${type}/${id}`;
 }
 
 export function toCatalogItem(stream: CachedStream): CatalogItem {
@@ -65,6 +67,7 @@ export function toCatalogItem(stream: CachedStream): CatalogItem {
         addedAt: parseAddedAt(stream.last_modified ?? stream.added),
         containerExtension: stream.container_extension,
         releaseDate: stream.release_date,
+        genre: stream.genre || undefined,
         href: buildHref(stream.type, id),
     };
 }
