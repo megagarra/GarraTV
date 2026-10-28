@@ -3,8 +3,9 @@ import fs from 'fs/promises';
 import net from 'net';
 import path from 'path';
 import { NextResponse } from 'next/server';
+import { dataDir } from './dataDir';
 
-const CONFIG_DIR = path.join(process.cwd(), 'data');
+const CONFIG_DIR = dataDir();
 const CONFIG_PATH = path.join(CONFIG_DIR, 'remote-access.json');
 
 const HASH_ALGORITHM = 'scrypt';

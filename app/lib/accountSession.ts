@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { getCookieValue } from './remoteAccess';
+import { dataDir } from './dataDir';
 
 /**
  * "This browser signed in to the Xtream account" — the line between the owner and a
@@ -14,7 +15,7 @@ import { getCookieValue } from './remoteAccess';
  * Rotating the secret (account replaced or signed out) kills every session at once.
  */
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = dataDir();
 const SECRET_PATH = path.join(DATA_DIR, 'session-secret.json');
 
 export const ACCOUNT_SESSION_COOKIE_NAME = 'xstream_session';

@@ -6,8 +6,9 @@ import path from 'path';
 import type { CachedCategory, CachedStream, ContentType, SyncMetadata } from './dbTypes';
 import { parseAddedAt } from './catalogItem';
 import { foldForSearch } from './searchText';
+import { dataDir } from './dataDir';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = dataDir();
 const DB_PATH = path.join(DATA_DIR, 'xstream-player.sqlite');
 
 let sqlite: Database.Database | null = null;
@@ -525,6 +526,71 @@ export function getCategoryCounts(type: ContentType): { category_id: string; tot
     return getConnection()
         .prepare('SELECT category_id, COUNT(*) AS total FROM streams WHERE type = ? GROUP BY category_id')
         .all(type) as { category_id: string; total: number }[];
+}
+
+/**
+ * Every title of a type (or one category) with only the columns the grids render.
+ * Plot, cast, director and backdrops stay out: they dominate the payload and the
+ * list screens never show them. One query, no page cap — the screen waits for this.
+ */
+const catalogColumns = `
+    id, category_id, name, type, icon, rating, added,
+    container_extension, cover, genre, release_date, rating_5based,
+    last_modified
+`;
+
+interface CatalogRow {
+    id: string;
+    category_id: string;
+    name: string;
+    type: ContentType;
+    icon: string | null;
+    rating: string | null;
+    added: string | null;
+    container_extension: string | null;
+    cover: string | null;
+    genre: string | null;
+    release_date: string | null;
+    rating_5based: string | null;
+    last_modified: string | null;
+}
+
+function catalogRowToStream(row: CatalogRow): CachedStream {
+    return {
+        id: row.id,
+        category_id: row.category_id,
+        name: row.name,
+        type: row.type,
+        icon: row.icon ?? undefined,
+        rating: row.rating ?? undefined,
+        added: row.added ?? undefined,
+        container_extension: row.container_extension ?? undefined,
+        cover: row.cover ?? undefined,
+        genre: row.genre ?? undefined,
+        release_date: row.release_date ?? undefined,
+        rating_5based: row.rating_5based ?? undefined,
+        last_modified: row.last_modified ?? undefined,
+    };
+}
+
+export function listCatalog(type: ContentType, categoryId?: string): CachedStream[] {
+    const sql = categoryId
+        ? `SELECT ${catalogColumns} FROM streams WHERE type = ? AND category_id = ? ORDER BY name COLLATE NOCASE`
+        : `SELECT ${catalogColumns} FROM streams WHERE type = ? ORDER BY name COLLATE NOCASE`;
+    const rows = categoryId
+        ? getConnection().prepare(sql).all(type, categoryId) as CatalogRow[]
+        : getConnection().prepare(sql).all(type) as CatalogRow[];
+
+    return rows.map(catalogRowToStream);
+}
+
+/** Titles that carry a provider date. Mixed epoch/ISO stamps are counted in JS. */
+export function countDatedStreams(type: ContentType): number {
+    let count = 0;
+    for (const row of getStreamDates(type)) {
+        if (parseAddedAt(row.last_modified ?? row.added) > 0) count += 1;
+    }
+    return count;
 }
 
 /** A page of the real catalog. `added` ordering is epoch-seconds only; mixed ISO dates belong in `getRecentStreams`. */

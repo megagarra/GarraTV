@@ -3,6 +3,7 @@ import 'server-only';
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
+import { dataDir } from './dataDir';
 
 /**
  * TV Mode runtime state: which devices are broadcasting, and the playback sync
@@ -24,7 +25,7 @@ import path from 'path';
  * B = matching the latency (by adjusting currentTime).
  */
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = dataDir();
 const DB_PATH = path.join(DATA_DIR, 'tv-mode.sqlite');
 
 /** A session is considered dead if it has not received a heartbeat for longer than this. */

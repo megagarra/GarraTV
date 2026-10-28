@@ -70,6 +70,14 @@ export const getCategoryCounts = async (type: ContentType): Promise<{ category_i
     return await requestCache<{ category_id: string; total: number }[]>('getCategoryCounts', { type }) ?? [];
 };
 
+export const listCatalog = async (type: ContentType, categoryId?: string): Promise<CachedStream[]> => {
+    return await requestCache<CachedStream[]>('listCatalog', { type, categoryId }) ?? [];
+};
+
+export const countDatedStreams = async (type: ContentType): Promise<number> => {
+    return await requestCache<number>('countDatedStreams', { type }) ?? 0;
+};
+
 export const listStreams = async (
     type: ContentType,
     categoryId: string | undefined,

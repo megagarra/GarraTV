@@ -1,0 +1,9 @@
+{
+    "name": "xstream-player",
+    "productName": "Xstream Player",
+    "version": "1.21.0",
+    "description": "IPTV player for an Xtream Codes account and free public channels.",
+    "author": "Janderson Lemos",
+    "license": "AGPL-3.0-only",
+    "main": "main.cjs"
+}

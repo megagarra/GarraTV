@@ -27,6 +27,12 @@
 .tv-pkg/
 tv/dist/
 
+# windows desktop packaging
+desktop/staging/
+desktop/icon.png
+desktop/LICENSE
+dist/windows/
+
 # misc
 .DS_Store
 *.pem

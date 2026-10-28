@@ -16,8 +16,9 @@ import {
     generateCacheKey
 } from './tmdb';
 import type { CachedStream } from './dbTypes';
+import { dataDir } from './dataDir';
 
-const CONFIG_FILE = path.join(process.cwd(), 'data', 'tmdb-config.json');
+const CONFIG_FILE = path.join(dataDir(), 'tmdb-config.json');
 const TMDB_API_BASE = 'https://api.themoviedb.org/3';
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
 // Bump when the cached carousel/hero item shape or image sizes change, so a

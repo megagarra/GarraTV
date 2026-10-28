@@ -10,10 +10,11 @@ import {
     hasAccountSession,
     rotateSessionSecret,
 } from '@/app/lib/accountSession';
+import { dataDir } from '@/app/lib/dataDir';
 
 export const runtime = 'nodejs';
 
-const CONFIG_PATH = path.join(process.cwd(), 'data', 'config.json');
+const CONFIG_PATH = path.join(dataDir(), 'config.json');
 
 function normalizeHost(hostUrl: string): string {
     return hostUrl.trim().replace(/\/+$/, '').toLowerCase();

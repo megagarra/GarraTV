@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFavorites } from '@/app/context/FavoritesContext';
 import { useData } from '@/app/context/DataContext';
 import * as db from '@/app/lib/db';
@@ -12,10 +12,8 @@ export const FILTER_ALL = 'all';
 export const FILTER_FAVORITES = 'favorites';
 export const FILTER_RECENT = 'recent';
 
-const PAGE = 60;
-
 export function useCatalogData(type: ContentType, filter: string, query: string, sort: SortOption) {
-    const { lastSync } = useData();
+    const { lastSync, isSyncing } = useData();
     const { favorites, isLoaded: favoritesLoaded } = useFavorites();
     const [categories, setCategories] = useState<CachedCategory[]>([]);
     const [counts, setCounts] = useState<Record<string, number>>({});
@@ -24,23 +22,20 @@ export function useCatalogData(type: ContentType, filter: string, query: string,
     const [items, setItems] = useState<CatalogItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(false);
-
-    useEffect(() => {
-        setPage(1);
-    }, [type, filter, query, sort]);
+    const [metaReady, setMetaReady] = useState(false);
+    const readyKeyRef = useRef('');
 
     useEffect(() => {
         let cancelled = false;
+        setMetaReady(false);
 
         const loadMeta = async () => {
             try {
-                const [cats, grouped, count, recent] = await Promise.all([
+                const [cats, grouped, count, dated] = await Promise.all([
                     db.getCategories(type),
                     db.getCategoryCounts(type),
                     db.getStreamCount(type),
-                    db.getRecentStreams(type, 200),
+                    db.countDatedStreams(type),
                 ]);
                 if (cancelled) return;
                 const map: Record<string, number> = {};
@@ -48,10 +43,12 @@ export function useCatalogData(type: ContentType, filter: string, query: string,
                 setCategories(sortCategories(cats, 'name-asc'));
                 setCounts(map);
                 setTotal(count);
-                setRecentCount(recent.length);
+                setRecentCount(dated);
             } catch (err) {
                 console.error('[StreamFlix] Failed to load categories', err);
                 if (!cancelled) setError('catalog.loadCategoriesError');
+            } finally {
+                if (!cancelled) setMetaReady(true);
             }
         };
 
@@ -62,75 +59,63 @@ export function useCatalogData(type: ContentType, filter: string, query: string,
     }, [type, lastSync]);
 
     useEffect(() => {
-        if (filter === FILTER_FAVORITES && !favoritesLoaded) return undefined;
+        if (!metaReady) {
+            if (!readyKeyRef.current) setLoading(true);
+            return undefined;
+        }
+        if (filter === FILTER_FAVORITES && query.trim().length < 2) return undefined;
+
+        const trimmed = query.trim();
+        const searching = trimmed.length >= 2;
+        const requestKey = `${type}|${filter}|${trimmed}|${sort}`;
+        const sameList = readyKeyRef.current === requestKey;
+
+        // An empty cache mid-sync is not a finished list. A list already on screen
+        // stays up until the replacement arrives whole.
+        if (isSyncing && total === 0 && !searching && filter !== FILTER_FAVORITES) {
+            readyKeyRef.current = '';
+            setLoading(true);
+            setItems([]);
+            setError('');
+            return undefined;
+        }
 
         let cancelled = false;
 
+        const publish = (catalog: CatalogItem[]) => {
+            if (cancelled) return;
+            setItems(catalog);
+            readyKeyRef.current = requestKey;
+            setLoading(false);
+        };
+
         const load = async () => {
-            if (page === 1) setLoading(true);
+            if (!sameList) {
+                setLoading(true);
+                setItems([]);
+            }
             setError('');
-            const trimmed = query.trim();
-            const pagedAll = filter === FILTER_ALL && trimmed.length < 2 && sort !== 'added';
 
             try {
-                if (trimmed.length >= 2) {
-                    const streams = await db.searchStreams(trimmed, type, 80);
-                    if (cancelled) return;
-                    setItems(sortCatalogItems(toCatalogItems(streams), sort));
-                    setHasMore(false);
-                } else if (filter === FILTER_FAVORITES) {
-                    const own = favorites.filter((item) => item.type === type);
-                    const streams = await db.getStreamsByIds(own.map((item) => item.id), type);
-                    if (cancelled) return;
-                    const catalog = toCatalogItems(streams);
-                    const found = new Set(catalog.map((item) => item.id));
-                    for (const favorite of own) {
-                        const id = String(favorite.id);
-                        if (found.has(id)) continue;
-                        catalog.push(toCatalogItem({
-                            id,
-                            category_id: '',
-                            name: favorite.name,
-                            type,
-                            icon: favorite.image,
-                            cover: favorite.image,
-                            rating: favorite.rating,
-                        }));
-                    }
-                    setItems(sortCatalogItems(catalog, sort));
-                    setHasMore(false);
-                } else if (filter === FILTER_RECENT || (filter === FILTER_ALL && sort === 'added')) {
-                    const streams = await db.getRecentStreams(type, 120);
-                    if (cancelled) return;
-                    setItems(sortCatalogItems(toCatalogItems(streams), 'added'));
-                    setHasMore(false);
-                } else if (pagedAll) {
-                    const streams = await db.listStreams(
-                        type,
-                        undefined,
-                        PAGE,
-                        (page - 1) * PAGE,
-                        sort === 'rating' ? 'rating' : 'name',
-                    );
-                    if (cancelled) return;
-                    const catalog = toCatalogItems(streams);
-                    setItems((current) => {
-                        if (page === 1) return catalog;
-                        const seen = new Set(current.map((item) => item.id));
-                        return current.concat(catalog.filter((item) => !seen.has(item.id)));
-                    });
-                    setHasMore(streams.length === PAGE);
-                } else {
-                    const streams = await db.getStreams(filter, type);
-                    if (cancelled) return;
-                    setItems(sortCatalogItems(toCatalogItems(streams), sort));
-                    setHasMore(false);
+                if (searching) {
+                    const streams = await db.searchStreams(trimmed, type, 300);
+                    publish(sortCatalogItems(toCatalogItems(streams), sort));
+                    return;
                 }
+
+                const streams = await db.listCatalog(type, filter === FILTER_ALL || filter === FILTER_RECENT ? undefined : filter);
+                if (cancelled) return;
+                const catalog = toCatalogItems(streams);
+                publish(sortCatalogItems(
+                    filter === FILTER_RECENT ? catalog.filter((item) => item.addedAt > 0) : catalog,
+                    filter === FILTER_RECENT ? 'added' : sort,
+                ));
             } catch (err) {
                 console.error('[StreamFlix] Failed to load streams', err);
-                if (!cancelled) setError('catalog.loadItemsError');
-            } finally {
-                if (!cancelled) setLoading(false);
+                if (!cancelled) {
+                    setError('catalog.loadItemsError');
+                    setLoading(false);
+                }
             }
         };
 
@@ -138,16 +123,74 @@ export function useCatalogData(type: ContentType, filter: string, query: string,
         return () => {
             cancelled = true;
         };
-    }, [type, filter, query, sort, page, favorites, favoritesLoaded, lastSync]);
+    }, [type, filter, query, sort, lastSync, isSyncing, total, metaReady]);
+
+    useEffect(() => {
+        if (filter !== FILTER_FAVORITES || query.trim().length >= 2) return undefined;
+        if (!metaReady || !favoritesLoaded) {
+            setLoading(true);
+            setItems([]);
+            return undefined;
+        }
+
+        const trimmed = query.trim();
+        const requestKey = `${type}|${filter}|${trimmed}|${sort}`;
+        const sameList = readyKeyRef.current === requestKey;
+        let cancelled = false;
+
+        const load = async () => {
+            if (!sameList) {
+                setLoading(true);
+                setItems([]);
+            }
+            setError('');
+            try {
+                const own = favorites.filter((item) => item.type === type);
+                const streams = await db.getStreamsByIds(own.map((item) => item.id), type);
+                if (cancelled) return;
+                const catalog = toCatalogItems(streams);
+                const found = new Set(catalog.map((item) => item.id));
+                for (const favorite of own) {
+                    const id = String(favorite.id);
+                    if (found.has(id)) continue;
+                    catalog.push(toCatalogItem({
+                        id,
+                        category_id: '',
+                        name: favorite.name,
+                        type,
+                        icon: favorite.image,
+                        cover: favorite.image,
+                        rating: favorite.rating,
+                    }));
+                }
+                if (cancelled) return;
+                setItems(sortCatalogItems(catalog, sort));
+                readyKeyRef.current = requestKey;
+                setLoading(false);
+            } catch (err) {
+                console.error('[StreamFlix] Failed to load streams', err);
+                if (!cancelled) {
+                    setError('catalog.loadItemsError');
+                    setLoading(false);
+                }
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [type, filter, query, sort, favorites, favoritesLoaded, metaReady]);
 
     const favoriteCount = favorites.filter((item) => item.type === type).length;
-    // Size of the selected category, not of the page loaded so far.
     const searching = query.trim().length >= 2;
     const itemCount = !searching && filter === FILTER_ALL
         ? total
-        : !searching && counts[filter] !== undefined
-            ? counts[filter]
-            : items.length;
+        : !searching && filter === FILTER_RECENT
+            ? recentCount
+            : !searching && counts[filter] !== undefined
+                ? counts[filter]
+                : items.length;
 
     return {
         categories,
@@ -159,7 +202,5 @@ export function useCatalogData(type: ContentType, filter: string, query: string,
         items,
         loading,
         error,
-        hasMore,
-        loadMore: () => setPage((current) => current + 1),
     };
 }

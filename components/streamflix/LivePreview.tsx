@@ -33,7 +33,7 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
     const t = useT();
     const videoRef = useRef<HTMLVideoElement>(null);
     const frameRef = useRef<HTMLDivElement>(null);
-    const [muted, setMuted] = useState(true);
+    const [muted, setMuted] = useState(false);
     const [paused, setPaused] = useState(false);
     const [failed, setFailed] = useState(false);
 
@@ -51,14 +51,27 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
         };
         const onPause = () => setPaused(true);
         const onPlay = () => setPaused(false);
+        // Autoplay with sound is refused without a gesture. Stay paused then,
+        // so the preview never starts silently.
+        const startWithSound = () => {
+            if (disposed) return;
+            video.muted = false;
+            video.volume = 1;
+            const attempt = video.play();
+            if (attempt) attempt.catch(() => {
+                if (!disposed) setPaused(true);
+            });
+        };
 
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = src;
+            video.addEventListener('canplay', startWithSound, { once: true });
         } else if (Hls.isSupported()) {
             hls = new Hls({ enableWorker: false, maxBufferLength: 20 });
             hls.on(Hls.Events.ERROR, (_, data) => {
                 if (data.fatal) onError();
             });
+            hls.on(Hls.Events.MANIFEST_PARSED, startWithSound);
             hls.loadSource(src);
             hls.attachMedia(video);
         } else {
@@ -73,6 +86,7 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
             video.removeEventListener('error', onError);
             video.removeEventListener('pause', onPause);
             video.removeEventListener('play', onPlay);
+            video.removeEventListener('canplay', startWithSound);
             if (hls) hls.destroy();
             video.removeAttribute('src');
             video.load();
@@ -80,7 +94,10 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
     }, [streamId, srcOverride]);
 
     useEffect(() => {
-        if (videoRef.current) videoRef.current.muted = muted;
+        const video = videoRef.current;
+        if (!video) return;
+        video.muted = muted;
+        if (!muted) video.volume = 1;
     }, [muted]);
 
     const togglePlay = () => {
@@ -113,8 +130,6 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
                         <video
                             ref={videoRef}
                             className={`w-full h-full object-contain ${paused ? 'opacity-0' : ''}`}
-                            autoPlay
-                            muted
                             playsInline
                         />
                     )}

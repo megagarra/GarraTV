@@ -16,7 +16,8 @@
     "package:tizen": "node scripts/package-tv.mjs tizen",
     "package:tizen:dev": "node scripts/package-tv.mjs tizen dev",
     "install:tv": "node scripts/install-tv.mjs",
-    "install:tv:dev": "node scripts/install-tv.mjs dev"
+    "install:tv:dev": "node scripts/install-tv.mjs dev",
+    "package:windows": "node scripts/package-windows.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
@@ -34,6 +35,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.17",
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
     "esbuild": "^0.28.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",

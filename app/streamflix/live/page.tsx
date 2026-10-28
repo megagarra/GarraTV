@@ -11,6 +11,7 @@ import type { CatalogItem } from '@/app/lib/catalogItem';
 import Shell from '@/components/streamflix/Shell';
 import CategorySidebar from '@/components/streamflix/CategorySidebar';
 import LivePreview from '@/components/streamflix/LivePreview';
+import { useInfiniteScroll } from '@/app/hooks/useInfiniteScroll';
 import { FILTER_ALL, FILTER_FAVORITES, FILTER_RECENT, useCatalogData } from '@/components/streamflix/useCatalogData';
 import {
     epgProgress,
@@ -221,19 +222,16 @@ function LiveScreen() {
     const [query, setQuery] = useState('');
     const [mode, setMode] = useState<'list' | 'grid'>('list');
     const [selectedId, setSelectedId] = useState<string | null>(requested);
-    const [visible, setVisible] = useState(PAGE);
     const [loadedGuide, setLoadedGuide] = useState<{ id: string; entries: EpgEntry[] } | null>(null);
     const [clock, setClock] = useState(nowSeconds);
     const data = useCatalogData('live', filter, query, 'name-asc');
+    const { visibleItems, hasMore, sentinelRef } = useInfiniteScroll(data.items, {
+        initialBatchSize: PAGE,
+        loadBatchSize: PAGE,
+    });
 
-    const changeFilter = (id: string) => {
-        setFilter(id);
-        setVisible(PAGE);
-    };
-    const changeQuery = (value: string) => {
-        setQuery(value);
-        setVisible(PAGE);
-    };
+    const changeFilter = (id: string) => setFilter(id);
+    const changeQuery = (value: string) => setQuery(value);
 
     useEffect(() => {
         const timer = window.setInterval(() => setClock(nowSeconds()), 30000);
@@ -279,7 +277,6 @@ function LiveScreen() {
     } else if (next) {
         upcoming.push(next);
     }
-    const shown = data.items.slice(0, visible);
     const selectedFavorite = selected ? isFavorite(selected.id, 'live') : false;
     const watchHref = selected
         ? `/dashboard/watch/live/${selected.id}?title=${encodeURIComponent(selected.name)}`
@@ -298,6 +295,16 @@ function LiveScreen() {
             : filter === FILTER_RECENT
                 ? t('streamflix.recent')
                 : (categoryName || t('streamflix.liveTv'));
+
+    if (data.loading || data.error) {
+        return (
+            <Shell title={t('streamflix.liveTv')} backHref="/streamflix/home" fill>
+                <p className={`py-16 text-center text-sm ${data.error ? 'text-[#E50914]' : 'text-[#B3B3B3]'}`}>
+                    {data.error ? t(data.error) : t('streamflix.loading')}
+                </p>
+            </Shell>
+        );
+    }
 
     return (
         <Shell title={t('streamflix.liveTv')} backHref="/streamflix/home" fill>
@@ -348,14 +355,10 @@ function LiveScreen() {
                     </div>
 
                     <div className="flex-1 min-h-0 md:overflow-y-auto overflow-x-hidden">
-                        {data.loading && shown.length === 0 ? (
-                            <p className="px-6 py-12 text-center text-sm text-[#B3B3B3]">{t('streamflix.loading')}</p>
-                        ) : data.error ? (
-                            <p className="px-6 py-12 text-center text-sm text-[#E50914]">{t(data.error)}</p>
-                        ) : shown.length === 0 ? (
+                        {visibleItems.length === 0 ? (
                             <p className="px-6 py-12 text-center text-sm text-[#B3B3B3]">{t('streamflix.noChannels')}</p>
                         ) : mode === 'list' ? (
-                            shown.map((item, index) => (
+                            visibleItems.map((item, index) => (
                                 <ChannelRow
                                     key={item.id}
                                     item={item}
@@ -371,7 +374,7 @@ function LiveScreen() {
                             ))
                         ) : (
                             <div className="flex flex-wrap p-2.5">
-                                {shown.map((item, index) => (
+                                {visibleItems.map((item, index) => (
                                     <ChannelTile
                                         key={item.id}
                                         item={item}
@@ -384,22 +387,7 @@ function LiveScreen() {
                                 ))}
                             </div>
                         )}
-                        {(visible < data.items.length || data.hasMore) && (
-                            <div className="p-4">
-                                <button
-                                    type="button"
-                                    data-focusable="true"
-                                    data-own-focus="true"
-                                    className={`${ghostButton} w-full h-11 text-sm`}
-                                    onClick={() => {
-                                        if (visible < data.items.length) setVisible((count) => count + PAGE);
-                                        else data.loadMore();
-                                    }}
-                                >
-                                    {t('streamflix.loadMore')}
-                                </button>
-                            </div>
-                        )}
+                        {hasMore && <div ref={sentinelRef} className="h-8" />}
                     </div>
                 </section>
 

@@ -3,6 +3,7 @@ import 'server-only';
 import { promises as fs } from 'fs';
 import crypto from 'crypto';
 import path from 'path';
+import { dataDir } from './dataDir';
 
 /**
  * Free tier: public channels from the iptv-org collection
@@ -14,7 +15,7 @@ import path from 'path';
  * to its URL without accepting arbitrary URLs.
  */
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = dataDir();
 const CONFIG_FILE = path.join(DATA_DIR, 'free-tier.json');
 const CACHE_DIR = path.join(DATA_DIR, 'free-channels');
 const COUNTRIES_FILE = path.join(CACHE_DIR, 'countries.json');

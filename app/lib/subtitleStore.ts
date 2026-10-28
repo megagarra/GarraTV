@@ -2,10 +2,11 @@ import 'server-only';
 
 import path from 'path';
 import { isSafeSegment } from './pathSafety';
+import { dataDir } from './dataDir';
 
 export const DEFAULT_SUBTITLE_LANGUAGE = 'pt-BR';
 
-export const SUBTITLES_DIR = path.join(process.cwd(), 'data', 'subtitles');
+export const SUBTITLES_DIR = path.join(dataDir(), 'subtitles');
 
 /**
  * Subtitles are cached per language: keying the file by stream alone let a

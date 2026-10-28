@@ -1,0 +1,169 @@
+/**
+ * Builds the installable Windows app and, when the Windows 10 SDK is present,
+ * the Microsoft Store package (.appx).
+ *
+ * The Store identity is not this repository's to invent. Partner Center shows
+ * the real values after the name is reserved:
+ *   WINDOWS_STORE_IDENTITY
+ *   WINDOWS_STORE_PUBLISHER          (CN=...)
+ *   WINDOWS_STORE_PUBLISHER_DISPLAY
+ */
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const desktop = path.join(root, 'desktop');
+const staging = path.join(desktop, 'staging');
+const serverDir = path.join(staging, 'server');
+const nodeDir = path.join(staging, 'node');
+
+function run(command, args) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, {
+            cwd: root,
+            stdio: 'inherit',
+            shell: false,
+            env: process.env,
+        });
+        child.on('error', reject);
+        child.on('exit', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`${command} ${args.join(' ')} exited ${code}`));
+        });
+    });
+}
+
+function windowsSdkRoot() {
+    const kits = path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Windows Kits', '10', 'bin');
+    if (!fs.existsSync(kits)) return null;
+    const versions = fs.readdirSync(kits)
+        .filter((name) => fs.existsSync(path.join(kits, name, 'x64', 'makeappx.exe')))
+        .sort();
+    if (!versions.length) return null;
+    return path.join(kits, versions[versions.length - 1], 'x64');
+}
+
+function copyNode() {
+    fs.mkdirSync(nodeDir, { recursive: true });
+    const exe = process.execPath;
+    fs.copyFileSync(exe, path.join(nodeDir, 'node.exe'));
+    const folder = path.dirname(exe);
+    for (const name of fs.readdirSync(folder)) {
+        if (name.toLowerCase().endsWith('.dll')) {
+            fs.copyFileSync(path.join(folder, name), path.join(nodeDir, name));
+        }
+    }
+}
+
+function stageServer() {
+    fs.rmSync(staging, { recursive: true, force: true });
+    fs.mkdirSync(serverDir, { recursive: true });
+    fs.cpSync(path.join(root, '.next', 'standalone'), serverDir, { recursive: true });
+    fs.cpSync(path.join(root, 'public'), path.join(serverDir, 'public'), { recursive: true });
+    fs.cpSync(path.join(root, '.next', 'static'), path.join(serverDir, '.next', 'static'), { recursive: true });
+    fs.rmSync(path.join(serverDir, 'data'), { recursive: true, force: true });
+    copyNode();
+    fs.copyFileSync(path.join(root, 'tv', 'assets', 'icon.png'), path.join(desktop, 'icon.png'));
+    fs.copyFileSync(path.join(root, 'LICENSE'), path.join(desktop, 'LICENSE'));
+
+    const native = path.join(serverDir, 'node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node');
+    if (!fs.existsSync(native)) {
+        throw new Error('Standalone build is missing better-sqlite3. Refusing to package a player that cannot open its database.');
+    }
+    if (!fs.existsSync(path.join(serverDir, 'server.js'))) {
+        throw new Error('Standalone build is missing server.js.');
+    }
+}
+
+function syncDesktopPackage() {
+    const app = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+    const desktopPackage = JSON.parse(fs.readFileSync(path.join(desktop, 'package.json'), 'utf8'));
+    desktopPackage.version = app.version;
+    desktopPackage.author = app.author;
+    desktopPackage.license = app.license;
+    fs.writeFileSync(path.join(desktop, 'package.json'), `${JSON.stringify(desktopPackage, null, 4)}\n`);
+}
+
+async function packageApp(sdk) {
+    const { build } = await import('electron-builder');
+    const targets = ['nsis'];
+    if (sdk) targets.push('appx');
+
+    process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false';
+
+    await build({
+        projectDir: root,
+        win: targets,
+        x64: true,
+        config: {
+            appId: 'com.xstreamplayer.desktop',
+            productName: 'Xstream Player',
+            copyright: `Copyright © ${new Date().getFullYear()} ${JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).author}`,
+            directories: {
+                app: 'desktop',
+                output: 'dist/windows',
+            },
+            files: ['main.cjs', 'package.json', 'icon.png', 'LICENSE', '!staging/**'],
+            extraResources: [
+                {
+                    from: 'desktop/staging/server',
+                    to: 'server',
+                    // Without an explicit node_modules pattern the packager drops that folder.
+                    filter: ['**/*', '**/node_modules/**/*'],
+                },
+                { from: 'desktop/staging/node', to: 'node' },
+            ],
+            afterPack: async (context) => {
+                const dest = path.join(context.appOutDir, 'resources', 'server', 'node_modules');
+                fs.cpSync(path.join(serverDir, 'node_modules'), dest, { recursive: true });
+            },
+            asar: true,
+            win: {
+                icon: 'desktop/icon.png',
+                target: targets.map((target) => ({ target, arch: ['x64'] })),
+            },
+            nsis: {
+                oneClick: true,
+                perMachine: false,
+                allowElevation: false,
+                shortcutName: 'Xstream Player',
+                uninstallDisplayName: 'Xstream Player',
+                artifactName: 'XstreamPlayer-Setup-${version}.${ext}',
+                createDesktopShortcut: true,
+                createStartMenuShortcut: true,
+            },
+            appx: {
+                identityName: process.env.WINDOWS_STORE_IDENTITY || 'XstreamPlayer',
+                publisher: process.env.WINDOWS_STORE_PUBLISHER || 'CN=XstreamPlayer',
+                publisherDisplayName: process.env.WINDOWS_STORE_PUBLISHER_DISPLAY || 'Janderson Lemos',
+                applicationId: 'XstreamPlayer',
+                languages: ['pt-BR', 'en-US'],
+                showNameOnTiles: true,
+                artifactName: 'XstreamPlayer-${version}.${ext}',
+            },
+        },
+    });
+
+    if (!sdk) {
+        console.log('[package:windows] Windows 10 SDK not found, so the Store package (.appx) was skipped.');
+        console.log('[package:windows] Install the SDK, then run npm run package:windows again.');
+    }
+    console.log(`[package:windows] node ${process.version} on ${os.platform()} ${os.arch()}`);
+    console.log('[package:windows] done → dist/windows/');
+}
+
+const sdk = windowsSdkRoot();
+console.log(`[package:windows] Windows SDK: ${sdk || 'not installed'}`);
+if (process.env.XSTREAM_SKIP_NEXT_BUILD === '1' && fs.existsSync(path.join(root, '.next', 'standalone', 'server.js'))) {
+    console.log('[package:windows] reusing the Next.js build from this session');
+} else {
+    console.log('[package:windows] building the Next.js app');
+    const npmCli = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    await run(process.execPath, [npmCli, 'run', 'build']);
+}
+stageServer();
+syncDesktopPackage();
+await packageApp(sdk);

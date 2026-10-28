@@ -1,7 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { dataDir } from './dataDir';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = dataDir();
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 
 interface StoredCredentials {

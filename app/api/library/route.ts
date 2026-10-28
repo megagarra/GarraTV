@@ -17,6 +17,8 @@ type LibraryAction =
     | 'getStreamCount'
     | 'getCategoryCounts'
     | 'listStreams'
+    | 'listCatalog'
+    | 'countDatedStreams'
     | 'getRecentStreams'
     | 'getStreamsByIds'
     | 'saveSyncMetadata'
@@ -139,6 +141,21 @@ export async function POST(request: Request) {
                     body.offset ?? 0,
                     body.order === 'rating' ? 'rating' : 'name',
                 ));
+            }
+            case 'listCatalog': {
+                const contentType = asContentType(body.type);
+                if (!contentType) {
+                    return NextResponse.json({ error: 'Tipo de conteúdo inválido' }, { status: 400 });
+                }
+                const categoryId = body.categoryId ? String(body.categoryId) : undefined;
+                return jsonData(library.listCatalog(contentType, categoryId));
+            }
+            case 'countDatedStreams': {
+                const contentType = asContentType(body.type);
+                if (!contentType) {
+                    return NextResponse.json({ error: 'Tipo de conteúdo inválido' }, { status: 400 });
+                }
+                return jsonData(library.countDatedStreams(contentType));
             }
             case 'getRecentStreams': {
                 const contentType = asContentType(body.type);

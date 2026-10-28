@@ -7,6 +7,7 @@ import type { CachedStream } from './dbTypes';
 import { readCredentials } from './liveShare';
 import { parseAddedAt } from './catalogItem';
 import { cleanSearchQuery, extractYear, findBestMatch } from './tmdb';
+import { dataDir } from './dataDir';
 
 /**
  * "What's on right now" for the home cards: the live programme worth tuning into
@@ -48,7 +49,7 @@ export interface Spotlight {
     generatedAt: number;
 }
 
-const TMDB_CONFIG = path.join(process.cwd(), 'data', 'tmdb-config.json');
+const TMDB_CONFIG = path.join(dataDir(), 'tmdb-config.json');
 const TMDB_API = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w1280';
 

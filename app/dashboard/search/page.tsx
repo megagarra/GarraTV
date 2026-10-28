@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo, type Ref } from 'react';
 import { Search, AlertCircle, Loader as LoaderIcon } from 'lucide-react';
 
 import { useData } from '@/app/context/DataContext';
@@ -118,7 +118,7 @@ const SearchResultsGrid = memo(function SearchResultsGrid({
 }: {
     items: CatalogItem[];
     hasMore: boolean;
-    sentinelRef: React.RefObject<HTMLDivElement | null>;
+    sentinelRef: Ref<HTMLDivElement>;
 }) {
     return (
         <>

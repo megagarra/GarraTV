@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ['lucide-react', 'framer-motion', 'next'],
   output: "standalone",
+  serverExternalPackages: ["better-sqlite3"],
   // File tracing sweeps data/ into the standalone bundle, which ships the
   // plaintext Xtream credentials and the user database to whoever gets the
   // build output. It is runtime state, mounted at runtime — never bundled.

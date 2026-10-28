@@ -4,11 +4,12 @@ import path from 'path';
 import { enforceAccountAccess, enforceApiAccess, getRequestDevice } from '@/app/lib/apiAuth';
 import { publicUserInfo } from '@/app/lib/liveShare';
 import { ACCOUNT_SESSION_COOKIE_NAME, hasAccountSession, rotateSessionSecret } from '@/app/lib/accountSession';
+import { dataDir } from '@/app/lib/dataDir';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CONFIG_PATH = path.join(process.cwd(), 'data', 'config.json');
+const CONFIG_PATH = path.join(dataDir(), 'config.json');
 
 // GET - whether this caller is signed in, plus the account info the UI shows.
 // The credentials never leave the server.

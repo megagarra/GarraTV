@@ -1109,6 +1109,8 @@ export default function VideoPlayer({
 
         const safePlay = () => {
             try {
+                video.muted = false;
+                video.volume = 1;
                 const playResult = video.play() as Promise<void> | undefined;
                 const settleTimer = window.setTimeout(() => {
                     if (!video.paused || video.readyState >= 2) {

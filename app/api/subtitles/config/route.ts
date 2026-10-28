@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { enforceAccountAccess } from '@/app/lib/apiAuth';
+import { dataDir } from '@/app/lib/dataDir';
 
-const CONFIG_DIR = path.join(process.cwd(), 'data');
+const CONFIG_DIR = dataDir();
 const CONFIG_FILE = path.join(CONFIG_DIR, 'opensubtitles-config.json');
 
 interface SubtitleConfig {

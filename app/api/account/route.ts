@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { enforceAccountAccess } from '@/app/lib/apiAuth';
+import { dataDir } from '@/app/lib/dataDir';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const CONFIG_PATH = path.join(process.cwd(), 'data', 'config.json');
+const CONFIG_PATH = path.join(dataDir(), 'config.json');
 
 interface StoredConfig {
     credentials?: {

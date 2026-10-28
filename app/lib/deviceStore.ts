@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { dataDir } from './dataDir';
 
 /**
  * Paired TV devices and the pairing handshake that creates them.
@@ -17,7 +18,7 @@ import path from 'path';
  * origin (`file://` on webOS), where cookies do not survive.
  */
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = dataDir();
 const DB_PATH = path.join(DATA_DIR, 'devices.sqlite');
 
 /** A pairing code is only good for five minutes. */
