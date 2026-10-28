@@ -6,10 +6,9 @@
  *   node scripts/package-tv.mjs webos dev    → the "(Dev)" variant, own app id
  *   node scripts/package-tv.mjs tizen [dev]  → tv/dist/<name>.wgt
  *
- * The payload is `tv/bootstrap/` plus the generated assets: the client's whole
- * job is to find the server, pair, and hand over to it, so nothing else needs to
- * ship inside the package. Version comes from package.json so the store build and
- * the server release never drift apart.
+ * The payload is `tv/bootstrap/` plus the generated assets. The client talks to
+ * the viewer's IPTV provider directly. Version comes from package.json so the
+ * store build and the server release never drift apart.
  *
  * The `dev` variant is a *separate installable app* (distinct id, amber icon,
  * "(Dev)" in the name) so a dev build and a prod build coexist on the same TV
@@ -17,6 +16,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -51,8 +51,9 @@ const TIZEN_APP = isDev
     ? { pkg: 'XstrmPlyrD', appId: 'XstrmPlyrD.XStreamPlayerDev', name: 'XStream Player (Dev)' }
     : { pkg: 'XstrmPlyr0', appId: 'XstrmPlyr0.XStreamPlayer', name: 'XStream Player' };
 
-function has(command) {
-    return spawnSync(command, ['--version'], { stdio: 'ignore', shell: true }).status === 0;
+/** `versionArg`: the Tizen CLI rejects `--version` and only knows `tizen version`. */
+function has(command, versionArg = '--version') {
+    return spawnSync(command, [versionArg], { stdio: 'ignore', shell: true }).status === 0;
 }
 
 function run(command, args) {
@@ -81,6 +82,29 @@ function stagePayload() {
     // Always staged as `icon.png` so the manifests do not need to know the variant.
     fs.copyFileSync(path.join(assets, iconSource), path.join(staging, 'icon.png'));
     fs.copyFileSync(path.join(assets, 'splash.png'), path.join(staging, 'splash.png'));
+    writeServerList();
+}
+
+/** Addresses where this machine serves the Streamflix app the TV should open. */
+function writeServerList() {
+    const port = String(process.env.PORT || process.env.APP_PORT || '3000');
+    const urls = [`http://10.0.2.2:${port}`];
+    const nets = os.networkInterfaces();
+
+    for (const entries of Object.values(nets)) {
+        for (const entry of entries || []) {
+            if (entry.family !== 'IPv4' && entry.family !== 4) continue;
+            if (entry.internal) continue;
+            if (String(entry.address).startsWith('169.254.')) continue;
+            urls.push(`http://${entry.address}:${port}`);
+        }
+    }
+
+    const unique = [...new Set(urls)];
+    fs.writeFileSync(
+        path.join(staging, 'server.js'),
+        `/* Generated at package time. The TV opens the Streamflix app. */\nwindow.XSTREAM_SERVERS = ${JSON.stringify(unique)};\n`,
+    );
 }
 
 function packageWebos() {
@@ -107,8 +131,17 @@ function packageWebos() {
     run('ares-package', [staging, '--outdir', distDir, '--no-minify']);
 }
 
+function tizenCommand() {
+    // The Studio used by the TV emulator lives in the repo checkout, not on PATH.
+    const local = path.join(root, '.tv-browsers', 'tizen-studio', 'tools', 'ide', 'bin', 'tizen.bat');
+    if (fs.existsSync(local)) return local;
+    if (has('tizen', 'version')) return 'tizen';
+    return null;
+}
+
 function packageTizen() {
-    if (!has('tizen')) {
+    const tizen = tizenCommand();
+    if (!tizen) {
         console.error(
             '[package:tv] tizen CLI not found. Install Tizen Studio and put its\n' +
             '  tools/ide/bin on PATH, then create a signing profile with:\n' +
@@ -126,15 +159,20 @@ function packageTizen() {
 
     fs.writeFileSync(path.join(staging, 'config.xml'), config);
 
-    run('tizen', ['build-web', '--', staging]);
-    run('tizen', ['package', '--type', 'wgt', '--', path.join(staging, '.buildResult')]);
+    // `build-web` only copies the files into .buildResult, and the CLI-only Tizen Studio
+    // install crashes on it (missing Eclipse classes), so the staged folder is signed as is.
+    const buildResult = path.join(staging, '.buildResult');
+    const built = spawnSync(tizen, ['build-web', '--', staging], { stdio: 'inherit', shell: true }).status === 0;
+    if (!built) {
+        console.warn('[package:tv] tizen build-web failed; packaging the staged files directly');
+        fs.rmSync(buildResult, { recursive: true, force: true });
+    }
+    const packageDir = built ? buildResult : staging;
+    run(tizen, ['package', '--type', 'wgt', '--', packageDir]);
 
-    for (const file of fs.readdirSync(path.join(staging, '.buildResult'))) {
+    for (const file of fs.readdirSync(packageDir)) {
         if (file.endsWith('.wgt')) {
-            fs.copyFileSync(
-                path.join(staging, '.buildResult', file),
-                path.join(distDir, file),
-            );
+            fs.copyFileSync(path.join(packageDir, file), path.join(distDir, file));
         }
     }
 }

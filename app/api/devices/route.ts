@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { enforceRemoteAccessForApi, getCookieValue } from '@/app/lib/remoteAccess';
-import { getRequestDevice } from '@/app/lib/apiAuth';
+import { ACCOUNT_SESSION_REQUIRED, getRequestDevice } from '@/app/lib/apiAuth';
+import { hasAccountSession } from '@/app/lib/accountSession';
 import { listDevices, revokeDevice, updateDevice } from '@/app/lib/deviceStore';
 import { listProfiles } from '@/app/lib/userStore';
 
@@ -30,6 +31,13 @@ async function guardOwner(request: Request): Promise<NextResponse | null> {
 
     if (getRequestDevice(request)) {
         return NextResponse.json({ error: 'Um aparelho pareado não pode gerenciar outros' }, { status: 403 });
+    }
+
+    if (!await hasAccountSession(request)) {
+        return NextResponse.json(
+            { error: 'Sessão da conta obrigatória', code: ACCOUNT_SESSION_REQUIRED },
+            { status: 401 }
+        );
     }
 
     return null;

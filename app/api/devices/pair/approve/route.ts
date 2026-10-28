@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enforceRemoteAccessForApi } from '@/app/lib/remoteAccess';
-import { getRequestDevice } from '@/app/lib/apiAuth';
+import { ACCOUNT_SESSION_REQUIRED, getRequestDevice } from '@/app/lib/apiAuth';
+import { hasAccountSession } from '@/app/lib/accountSession';
 import { approvePairingCode } from '@/app/lib/deviceStore';
 import { listProfiles } from '@/app/lib/userStore';
 import { translateForRequest } from '@/app/lib/i18n';
@@ -25,6 +26,15 @@ export async function POST(request: NextRequest) {
 
     if (getRequestDevice(request)) {
         return NextResponse.json({ error: translateForRequest(request, 'serverErrors.pairedCannotApprove') }, { status: 403 });
+    }
+
+    // A paired TV gets an account session, so only a browser signed in to the
+    // account may enroll one; a visitor must not be able to mint that access.
+    if (!await hasAccountSession(request)) {
+        return NextResponse.json(
+            { error: 'Sessão da conta obrigatória', code: ACCOUNT_SESSION_REQUIRED },
+            { status: 401 }
+        );
     }
 
     try {

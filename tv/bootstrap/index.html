@@ -11,66 +11,49 @@
         <div class="spinner"></div>
     </div>
 
-    <div id="screen-setup" class="screen hidden">
+    <div id="screen-login" class="screen hidden">
         <div class="panel">
             <div class="badge"></div>
-            <h1>Conectar ao servidor</h1>
-            <p class="lead">Informe o IP ou endereço do servidor do XStream Player na sua rede.</p>
+            <h1>Entrar com Xtream Codes</h1>
+            <p class="lead">Use o endereço, o usuário e a senha que o seu provedor de IPTV enviou.</p>
 
-            <p id="setup-note" class="note hidden"></p>
-
-            <input id="host-input" type="text" class="field" placeholder="192.168.0.10:3000"
+            <label class="label" for="portal-input">URL do servidor</label>
+            <input id="portal-input" type="text" class="field" placeholder="http://servidor.com:8080"
                    autocomplete="off" autocorrect="off" spellcheck="false" data-focusable="true">
 
-            <p id="setup-error" class="error hidden"></p>
+            <label class="label" for="user-input">Usuário</label>
+            <input id="user-input" type="text" class="field" placeholder="seu_usuario"
+                   autocomplete="off" autocorrect="off" spellcheck="false" data-focusable="true">
 
-            <button id="host-submit" class="button" data-focusable="true">Continuar</button>
+            <label class="label" for="pass-input">Senha</label>
+            <input id="pass-input" type="password" class="field" placeholder="••••••••"
+                   autocomplete="off" data-focusable="true">
 
-            <p class="hint">
-                O endereço aparece na barra do navegador quando você abre o XStream Player
-                no computador.
-            </p>
+            <p id="login-error" class="error hidden"></p>
+
+            <button id="login-submit" class="button" data-focusable="true">Entrar</button>
         </div>
     </div>
 
-    <div id="screen-pair" class="screen hidden">
-        <div class="panel">
-            <h1>Autorize esta TV</h1>
-            <p class="lead">
-                No servidor, abra <strong>Dispositivos</strong> e digite o código abaixo.
-            </p>
-
-            <div class="pair-body">
-                <div class="pair-code-col">
-                    <div class="code-box"><span id="pair-code"></span></div>
-                </div>
-
-                <div id="pair-qr-col" class="pair-qr-col hidden">
-                    <div class="pair-qr-frame"><img id="pair-qr" alt="" src=""></div>
-                    <p class="hint">Ou aponte a câmera do celular</p>
-                </div>
-            </div>
-
-            <p id="pair-status" class="hint">Aguardando aprovação&hellip;</p>
-
-            <button id="pair-change" class="button button-ghost" data-focusable="true">
-                Mudar o endereço do servidor
-            </button>
+    <div id="screen-home" class="stage hidden">
+        <div class="topbar">
+            <button id="tab-live" class="tab" data-focusable="true" data-section="live">Ao vivo</button>
+            <button id="tab-movie" class="tab" data-focusable="true" data-section="movie">Filmes</button>
+            <button id="tab-series" class="tab" data-focusable="true" data-section="series">Séries</button>
+            <button id="logout" class="tab tab-quiet" data-focusable="true">Sair</button>
+        </div>
+        <div class="columns">
+            <div id="cat-col" class="column"></div>
+            <div id="item-col" class="column column-wide"></div>
         </div>
     </div>
 
-    <div id="screen-error" class="screen hidden">
-        <div class="panel">
-            <h1 id="error-title">Servidor fora do ar</h1>
-            <p id="error-message" class="lead"></p>
-
-            <button id="error-retry" class="button" data-focusable="true">Tentar de novo</button>
-            <button id="error-change" class="button button-ghost" data-focusable="true">
-                Mudar o endereço do servidor
-            </button>
-        </div>
+    <div id="screen-player" class="stage hidden">
+        <video id="player"></video>
+        <div id="player-title" class="player-title"></div>
     </div>
 
+    <script src="server.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

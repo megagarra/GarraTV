@@ -11,7 +11,6 @@ import {
     Film,
     Layers,
     Radio,
-    MonitorSmartphone,
     Settings,
     User,
 } from 'lucide-react';
@@ -38,7 +37,6 @@ const CONTENT_ITEMS: NavItem[] = [
 
 const SYSTEM_ITEMS: NavItem[] = [
     { labelKey: 'tvMode', icon: Radio, path: '/dashboard/tv' },
-    { labelKey: 'devices', icon: MonitorSmartphone, path: '/dashboard/devices' },
     { labelKey: 'settings', icon: Settings, path: '/dashboard/settings' },
 ];
 

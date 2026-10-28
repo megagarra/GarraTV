@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run build:polyfills && next build --webpack",
-    "build:polyfills": "mkdir -p public && esbuild app/polyfills.ts --bundle --format=iife --target=es2015 --outfile=public/polyfills-legacy.js --minify",
+    "build:polyfills": "esbuild app/polyfills.ts --bundle --format=iife --target=es2015 --outfile=public/polyfills-legacy.js --minify",
     "start": "next start",
     "lint": "eslint",
     "tv:assets": "python3 scripts/gen-tv-assets.py",

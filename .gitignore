@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/test-results/
+/.tv-browsers/
 
 # next.js
 /.next/

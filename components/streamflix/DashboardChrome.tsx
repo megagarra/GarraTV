@@ -12,7 +12,6 @@ import Header from './Header';
 const TITLES: [string, string][] = [
     ['/dashboard/search', 'nav.search'],
     ['/dashboard/tv', 'nav.tvMode'],
-    ['/dashboard/devices', 'nav.devices'],
     ['/dashboard/settings', 'nav.settings'],
     ['/dashboard/favorites', 'nav.myList'],
     ['/dashboard/live', 'nav.live'],

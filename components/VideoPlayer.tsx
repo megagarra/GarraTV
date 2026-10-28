@@ -1027,9 +1027,11 @@ export default function VideoPlayer({
 
         const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
         const isLegacyWebOs = /webos|web0s/.test(userAgent) && playbackProfile.isConstrained;
-        const isHLS = src.toLowerCase().includes('.m3u8');
+        // The live relay (`/api/relay?type=live&streamId=…`) serves a playlist with no `.m3u8` in its URL.
+        const isLiveRelay = /\/api\/relay\?(.*&)?type=live(&|$)/i.test(src);
+        const isHLS = src.toLowerCase().includes('.m3u8') || isLiveRelay;
         const isDirectVideo = /\.(mp4|mkv|avi|webm|mov)$/i.test(src.split('?')[0]);
-        const isProviderLive = isHLS && /\/live\//i.test(src);
+        const isProviderLive = isHLS && (/\/live\//i.test(src) || isLiveRelay);
         // Modo TV: our own ffmpeg relay is just as live (sliding window, no ENDLIST),
         // but its URL has no "/live/" — so it used to fall through to the VOD tuning
         // and inherit hls.js defaults, most damagingly an unbounded live latency.

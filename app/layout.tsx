@@ -69,6 +69,8 @@ const errorTrapScript = `
   }
 
   window.addEventListener('error', function (event) {
+    // Capture phase also sees failed <img>/<video> loads (broken channel logos); skip those.
+    if (event.target && event.target !== window) return;
     var where = String(event.filename || '').split('/').pop() + ':' + event.lineno;
     var stack = event.error && event.error.stack ? '\\n   ' + String(event.error.stack).split('\\n').slice(0, 4).join('\\n   ') : '';
     record('ERROR: ' + (event.message || '') + ' @ ' + where + stack);

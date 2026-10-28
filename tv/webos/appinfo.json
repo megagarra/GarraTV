@@ -13,5 +13,6 @@
     "iconColor": "#e50914",
     "supportPortraitMode": false,
     "disableBackHistoryAPI": true,
-    "handlesRelaunch": true
+    "handlesRelaunch": true,
+    "requiredACG": []
 }

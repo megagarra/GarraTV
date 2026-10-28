@@ -71,11 +71,20 @@ h1 {
     color: #a3a3a3;
 }
 
+.label {
+    display: block;
+    margin: 22px 0 8px 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: #d4d4d4;
+    text-align: left;
+}
+
 .field {
     display: block;
     width: 100%;
-    padding: 24px;
-    font-size: 34px;
+    padding: 22px 24px;
+    font-size: 32px;
     color: #ffffff;
     background: #262626;
     border: 3px solid #404040;
@@ -224,4 +233,118 @@ h1 {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+.stage {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: #0a0a0a;
+}
+
+.topbar {
+    height: 96px;
+    padding: 20px 36px 0 36px;
+    white-space: nowrap;
+}
+
+.tab {
+    display: inline-block;
+    margin-right: 16px;
+    padding: 14px 28px;
+    font-size: 26px;
+    font-weight: 700;
+    color: #ffffff;
+    background: #1a1a1a;
+    border: 3px solid transparent;
+    border-radius: 12px;
+    outline: none;
+}
+
+.tab-quiet {
+    float: right;
+    margin-right: 0;
+    font-weight: 500;
+    color: #d4d4d4;
+}
+
+.tab:focus,
+.tab-on {
+    border-color: #e50914;
+    background: #2a0a0c;
+}
+
+.columns {
+    position: absolute;
+    top: 96px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.column {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 34%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-right: 2px solid #262626;
+}
+
+.column-wide {
+    left: 34%;
+    width: 66%;
+    border-right: 0;
+}
+
+.row {
+    display: block;
+    width: 100%;
+    padding: 18px 28px;
+    font-size: 28px;
+    line-height: 1.3;
+    color: #ffffff;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-left: 6px solid transparent;
+    outline: none;
+}
+
+.row:focus,
+.row-on {
+    background: #1c1c1c;
+    border-left-color: #e50914;
+}
+
+.row-empty {
+    padding: 28px;
+    font-size: 26px;
+    color: #a3a3a3;
+}
+
+#player {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+}
+
+.player-title {
+    position: absolute;
+    top: 28px;
+    left: 40px;
+    right: 40px;
+    font-size: 36px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 2px 8px #000000;
 }
