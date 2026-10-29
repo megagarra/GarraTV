@@ -43,7 +43,7 @@ input[type="submit"] {
    ========================================================================== */
 :root {
     /* superfícies */
-    /* StreamFlix palette (StreamFlix IPTV UI Mockups/design_handoff_streamflix). */
+    /* GarraTV palette (StreamFlix IPTV UI Mockups/design_handoff_streamflix). */
     --bg: #141414;
     --surface: #1f1f1f;
     --surface-2: #2a2a2a;
@@ -66,7 +66,7 @@ input[type="submit"] {
     --ok: #34d399;
     --warn: #fbbf24;
 
-    /* Typography: the StreamFlix layouts override --font-ui with Manrope and set
+    /* Typography: the GarraTV layouts override --font-ui with Manrope and set
        --sf-display to Montserrat (next/font, self-hosted, so no third-party fetch). */
     --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -110,7 +110,7 @@ body {
     transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
 }
 
-/* StreamFlix screens mark their focusables `data-own-focus` and draw focus with
+/* GarraTV screens mark their focusables `data-own-focus` and draw focus with
    their own utilities; this rule would otherwise win the cascade (it loads after
    Tailwind's utilities) and force `position: relative` onto absolute buttons. */
 [data-focusable="true"]:not([data-own-focus]):focus {
@@ -270,4 +270,16 @@ video::cue {
 /* Chrome/Webkit specific position adjustment if supported */
 video::-webkit-media-text-track-display {
     padding-bottom: 5% !important;
+}
+
+/* GarraTV: screens fade in once their data is complete (opacity only, so it
+   composites on old TVs). */
+@keyframes sfFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }

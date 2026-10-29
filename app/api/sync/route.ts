@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
 import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import { readCredentials } from '@/app/lib/liveShare';
-import { syncXtreamToSqlite, type SyncProgressUpdate, type XtreamCredentials } from '@/app/lib/xtreamSync';
+import { refreshSpotlight } from '@/app/lib/spotlight';
+import type { ContentType } from '@/app/lib/dbTypes';
+import { syncXtreamToSqlite, type SyncProgressUpdate, type SyncStage, type XtreamCredentials } from '@/app/lib/xtreamSync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type SyncJobStatus = 'running' | 'completed' | 'failed' | 'cancelled';
+
+interface SyncTypeProgress {
+    stage: SyncStage;
+    processed: number;
+    total: number;
+}
 
 interface SyncJob {
     id: string;
@@ -17,21 +25,23 @@ interface SyncJob {
     updatedAt: number;
     lastSync?: number;
     error?: string;
+    /** One entry per content type, for the loading screen's three rows. */
+    perType: Record<ContentType, SyncTypeProgress>;
     controller: AbortController;
 }
 
 type SyncJobResponse = Omit<SyncJob, 'controller'>;
 
 const globalSyncState = globalThis as typeof globalThis & {
-    xstreamSyncJobs?: Map<string, SyncJob>;
+    garratvSyncJobs?: Map<string, SyncJob>;
 };
 
 function jobs() {
-    if (!globalSyncState.xstreamSyncJobs) {
-        globalSyncState.xstreamSyncJobs = new Map();
+    if (!globalSyncState.garratvSyncJobs) {
+        globalSyncState.garratvSyncJobs = new Map();
     }
 
-    return globalSyncState.xstreamSyncJobs;
+    return globalSyncState.garratvSyncJobs;
 }
 
 function publicJob(job: SyncJob): SyncJobResponse {
@@ -44,6 +54,7 @@ function publicJob(job: SyncJob): SyncJobResponse {
         updatedAt: job.updatedAt,
         lastSync: job.lastSync,
         error: job.error,
+        perType: job.perType,
     };
 }
 
@@ -55,7 +66,13 @@ function currentRunningJob() {
     return undefined;
 }
 
+const waiting = (): SyncTypeProgress => ({ stage: 'waiting', processed: 0, total: 0 });
+
 function createJob() {
+    // Finished jobs are only polled for a moment after they end; keep the map small.
+    for (const [id, old] of jobs()) {
+        if (old.status !== 'running') jobs().delete(id);
+    }
     const job: SyncJob = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         status: 'running',
@@ -63,6 +80,7 @@ function createJob() {
         message: 'Iniciando sincronizacao no servidor',
         startedAt: Date.now(),
         updatedAt: Date.now(),
+        perType: { live: waiting(), movie: waiting(), series: waiting() },
         controller: new AbortController(),
     };
 
@@ -75,6 +93,13 @@ function updateJob(job: SyncJob, update: Partial<SyncProgressUpdate>) {
         job.progress = Math.max(0, Math.min(100, update.progress));
     }
     if (update.message) job.message = update.message;
+    if (update.type && update.stage) {
+        job.perType[update.type] = {
+            stage: update.stage,
+            processed: update.processed ?? 0,
+            total: update.total ?? 0,
+        };
+    }
     job.updatedAt = Date.now();
 }
 
@@ -85,6 +110,8 @@ async function runJob(job: SyncJob, credentials: XtreamCredentials) {
         job.progress = 100;
         job.message = 'Sincronizacao concluida';
         job.lastSync = lastSync;
+        // New catalog: rebuild the home highlights now, before anyone opens home.
+        refreshSpotlight('pt-BR');
     } catch (error) {
         if (job.controller.signal.aborted) {
             job.status = 'cancelled';

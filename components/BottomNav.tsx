@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Search, Bookmark, Radio, Settings } from 'lucide-react';
 import { useT } from '@/app/context/I18nContext';
+import { useIsAndroidApp } from '@/app/hooks/useIsAndroidApp';
 
 const mobileLinks = [
-    { labelKey: 'home', icon: Home, path: '/streamflix/home' },
+    { labelKey: 'home', icon: Home, path: '/garratv/home' },
     { labelKey: 'search', icon: Search, path: '/dashboard/search' },
-    { labelKey: 'myList', icon: Bookmark, path: '/streamflix/favorites' },
+    { labelKey: 'myList', icon: Bookmark, path: '/garratv/favorites' },
     { labelKey: 'tvMode', icon: Radio, path: '/dashboard/tv' },
     { labelKey: 'settings', icon: Settings, path: '/dashboard/settings' },
 ];
@@ -17,10 +18,12 @@ const mobileLinks = [
 export default function BottomNav() {
     const pathname = usePathname();
     const t = useT();
+    const android = useIsAndroidApp();
+    const links = android ? mobileLinks.filter((link) => link.path !== '/dashboard/tv') : mobileLinks;
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-line flex items-center justify-around h-16 px-2 z-[60] md:hidden">
-            {mobileLinks.map((link) => {
+            {links.map((link) => {
                 const Icon = link.icon;
                 const isActive = pathname.startsWith(link.path);
 

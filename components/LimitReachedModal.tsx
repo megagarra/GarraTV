@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Radio, Tv, ArrowRight } from 'lucide-react';
 import { useLiveSessions, excludeSelf, joinHref, type ShareSession } from '@/app/hooks/useLiveShare';
 import { useT } from '@/app/context/I18nContext';
+import { useIsAndroidApp } from '@/app/hooks/useIsAndroidApp';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 
@@ -24,6 +25,7 @@ interface LimitReachedModalProps {
 export default function LimitReachedModal({ open, onClose }: LimitReachedModalProps) {
     const router = useRouter();
     const t = useT();
+    const android = useIsAndroidApp();
     const { sessions, loading } = useLiveSessions(6000);
     const shares = useMemo(() => excludeSelf(sessions), [sessions]);
 
@@ -41,9 +43,11 @@ export default function LimitReachedModal({ open, onClose }: LimitReachedModalPr
             footer={
                 <div className="flex justify-end space-x-3">
                     <Button variant="ghost" onClick={onClose}>{t('limitModal.close')}</Button>
-                    <Button variant="primary" icon={Radio} onClick={() => router.push('/dashboard/tv')}>
-                        {t('limitModal.openTvMode')}
-                    </Button>
+                    {!android && (
+                        <Button variant="primary" icon={Radio} onClick={() => router.push('/dashboard/tv')}>
+                            {t('limitModal.openTvMode')}
+                        </Button>
+                    )}
                 </div>
             }
         >

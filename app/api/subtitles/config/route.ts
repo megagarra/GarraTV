@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
             {
                 headers: {
                     'Api-Key': apiKey,
-                    'User-Agent': 'XStreamPlayer v1.0',
+                    'User-Agent': 'GarraTV v1.0',
                 }
             }
         );

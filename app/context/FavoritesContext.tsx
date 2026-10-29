@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { apiFetch } from '../lib/apiClient';
 
 // Simplified Item for Favorites (storing just enough to render a card)
@@ -43,7 +43,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
             } catch (e) {
                 console.error("Failed to fetch favorites from backend", e);
                 // Fallback to localStorage if backend fails
-                const stored = localStorage.getItem('xstream_favorites');
+                const stored = localStorage.getItem('garratv_favorites');
                 if (stored) {
                     try {
                         setFavorites(JSON.parse(stored));
@@ -63,7 +63,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     // would serve stale data forever.
     useEffect(() => {
         if (isLoaded) {
-            localStorage.setItem('xstream_favorites', JSON.stringify(favorites));
+            localStorage.setItem('garratv_favorites', JSON.stringify(favorites));
         }
     }, [favorites, isLoaded]);
 
@@ -87,25 +87,38 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [favorites, isLoaded]);
 
-    const addFavorite = (item: FavoriteItem) => {
+    const addFavorite = useCallback((item: FavoriteItem) => {
         hasUserChangeRef.current = true;
         setFavorites(prev => {
             if (prev.some(f => f.id === item.id && f.type === item.type)) return prev;
             return [...prev, item];
         });
-    };
+    }, []);
 
-    const removeFavorite = (id: string | number, type: 'live' | 'movie' | 'series') => {
+    const removeFavorite = useCallback((id: string | number, type: 'live' | 'movie' | 'series') => {
         hasUserChangeRef.current = true;
         setFavorites(prev => prev.filter(item => !(item.id === id && item.type === type)));
-    };
+    }, []);
 
-    const isFavorite = (id: string | number, type: 'live' | 'movie' | 'series') => {
-        return favorites.some(item => item.id == id && item.type === type); // weak equality for id (string/number)
-    };
+    // Long lists call isFavorite once per row; a Set keyed by "type:id" makes it
+    // O(1) instead of a scan of every favorite. String ids keep the old loose
+    // (string/number) id match.
+    const favoriteKeys = useMemo(
+        () => new Set(favorites.map(item => `${item.type}:${String(item.id)}`)),
+        [favorites],
+    );
+    const isFavorite = useCallback(
+        (id: string | number, type: 'live' | 'movie' | 'series') => favoriteKeys.has(`${type}:${String(id)}`),
+        [favoriteKeys],
+    );
+
+    const value = useMemo(
+        () => ({ favorites, isLoaded, addFavorite, removeFavorite, isFavorite }),
+        [favorites, isLoaded, addFavorite, removeFavorite, isFavorite],
+    );
 
     return (
-        <FavoritesContext.Provider value={{ favorites, isLoaded, addFavorite, removeFavorite, isFavorite }}>
+        <FavoritesContext.Provider value={value}>
             {children}
         </FavoritesContext.Provider>
     );

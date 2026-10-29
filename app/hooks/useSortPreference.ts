@@ -10,7 +10,7 @@ export function useSortPreference(key: string, defaultValue: SortOption = 'added
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem(`xstream_sort_${key}`);
+            const saved = localStorage.getItem(`garratv_sort_${key}`);
             if (saved) {
                 setSort(saved as SortOption);
             }
@@ -21,7 +21,7 @@ export function useSortPreference(key: string, defaultValue: SortOption = 'added
     const updateSort = (newSort: SortOption) => {
         setSort(newSort);
         if (typeof window !== 'undefined') {
-            localStorage.setItem(`xstream_sort_${key}`, newSort);
+            localStorage.setItem(`garratv_sort_${key}`, newSort);
         }
     };
 

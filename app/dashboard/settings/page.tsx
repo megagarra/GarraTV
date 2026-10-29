@@ -10,13 +10,15 @@ import TmdbSection from '@/components/settings/TmdbSection';
 import FreeTierSection from '@/components/settings/FreeTierSection';
 import TvModeSection from '@/components/settings/TvModeSection';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
+import { useIsAndroidApp } from '@/app/hooks/useIsAndroidApp';
 
 /** Everything that used to live in the sidebar and the home header pills. */
-// StreamFlix card: same surface as the EPG "now" card.
+// GarraTV card: same surface as the EPG "now" card.
 const CARD = 'bg-surface border border-line rounded-lg p-5 md:p-6';
 
 export default function SettingsPage() {
     const t = useT();
+    const android = useIsAndroidApp();
 
     return (
         <div className="px-4 md:px-10 pt-7 pb-12 max-w-4xl">
@@ -29,7 +31,7 @@ export default function SettingsPage() {
                 <section className={CARD}><ProfilesSection /></section>
                 <section id="legendas" className={CARD}><SubtitlesSection /></section>
                 <section className={CARD}><TmdbSection /></section>
-                <section className={CARD}><TvModeSection /></section>
+                {!android && <section className={CARD}><TvModeSection /></section>}
                 <section className={CARD}><FreeTierSection /></section>
                 <section className={CARD}><DiagnosticsSection /></section>
             </div>

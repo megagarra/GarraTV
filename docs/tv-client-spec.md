@@ -36,7 +36,7 @@ Consequências:
 - O token de dispositivo é trocado por uma **sessão de cookie** em `/api/devices/session`,
   no momento do redirect. O Bearer continua sendo o mecanismo de autenticação de aparelho.
 - `app/lib/apiClient.ts` continua valendo: mantém o app agnóstico de host e carrega
-  `Authorization`/`X-Xstream-Profile` quando existirem. No app web, base URL vazia = igual a hoje.
+  `Authorization`/`X-GarraTV-Profile` quando existirem. No app web, base URL vazia = igual a hoje.
 
 ## 1. Autenticação de dispositivo (server-side)
 
@@ -95,7 +95,7 @@ por Bearer de device. Um aparelho pareado não pode aprovar outro.
 para lá depois do pareamento), não um `fetch` — por isso o token vai na query e as respostas
 são redirects. Token válido → seta o cookie de acesso remoto (assinado com o hash do PIN, só
 quando há PIN configurado; validade `REMOTE_ACCESS_SESSION_SECONDS`, renovada reentrando por
-essa rota após um 401) e o cookie `xstream_profile` do aparelho (**não** `httpOnly`: o
+essa rota após um 401) e o cookie `garratv_profile` do aparelho (**não** `httpOnly`: o
 `ProfileContext` lê e reescreve esse cookie no cliente). A rota nunca loga a URL (carrega o
 token) e responde `Cache-Control: no-store`.
 
@@ -126,11 +126,11 @@ Ordem de avaliação:
 `enforceApiAccess`.
 
 `resolveProfileId(request)` em `app/lib/userStore.ts` passa a resolver nesta ordem:
-1. header `X-Xstream-Profile` (se apontar para um perfil existente),
+1. header `X-GarraTV-Profile` (se apontar para um perfil existente),
 2. **perfil padrão do device autenticado por Bearer** (só quando não veio header — assim a TV
    pareada cai no perfil certo sem mandar nada; requisição do app web não tem Bearer, então
    nada muda),
-3. cookie `xstream_profile` (comportamento atual),
+3. cookie `garratv_profile` (comportamento atual),
 4. primeiro perfil.
 
 As rotas "servidor" (`approve`, `/api/devices` GET/PATCH/DELETE) continuam no
@@ -140,7 +140,7 @@ As rotas "servidor" (`approve`, `/api/devices` GET/PATCH/DELETE) continuam no
 
 Helper `app/lib/cors.ts`: `withCors(response, request)` + `corsPreflight(request)`.
 Ecoa o `Origin` da requisição (incluindo a string `null`), `Access-Control-Allow-Headers:
-Content-Type, Authorization, X-Xstream-Profile`, `Access-Control-Allow-Methods: GET, POST,
+Content-Type, Authorization, X-GarraTV-Profile`, `Access-Control-Allow-Methods: GET, POST,
 PATCH, DELETE, OPTIONS`, `Vary: Origin`. **Sem** `Allow-Credentials` (não usamos cookie
 cross-origin).
 
@@ -164,22 +164,22 @@ export function setServerBaseUrl(url: string): void;
 export function getDeviceToken(): string | null;
 export function setDeviceToken(token: string | null): void;
 
-/** Substitui todo `fetch('/api/...')`. Injeta base URL, Bearer e X-Xstream-Profile. */
+/** Substitui todo `fetch('/api/...')`. Injeta base URL, Bearer e X-GarraTV-Profile. */
 export function apiFetch(path: string, init?: RequestInit): Promise<Response>;
 
 /** Para src de <video>/<img> que não passa por fetch. */
 export function apiUrl(path: string): string;
 ```
 
-- Persistência em `localStorage`: `xstream_server_url`, `xstream_device_token`.
+- Persistência em `localStorage`: `garratv_server_url`, `garratv_device_token`.
 - No app web (build normal), `getServerBaseUrl()` retorna `''` → tudo segue same-origin e o
   comportamento atual não muda. **A migração dos 44 call sites não pode alterar o app web.**
 - `apiFetch` trata `401` limpando o token e emitindo um evento
-  (`window.dispatchEvent(new Event('xstream:unauthorized'))`) para a UI voltar ao pareamento.
+  (`window.dispatchEvent(new Event('garratv:unauthorized'))`) para a UI voltar ao pareamento.
 
 ### Notas de implementação (Fase 1)
 
-- **Origem do `X-Xstream-Profile`:** `apiFetch` lê o perfil ativo do cookie `xstream_profile`
+- **Origem do `X-GarraTV-Profile`:** `apiFetch` lê o perfil ativo do cookie `garratv_profile`
   e, quando o cookie não existe (origem `file://`), de um espelho em `localStorage` com a
   mesma chave — `ProfileContext.writeProfileCookie` grava nos dois. O header só é enviado
   quando há perfil conhecido, então no app web o resultado é idêntico ao de hoje.
@@ -231,11 +231,11 @@ webOS 5, não só no 79 do webOS 6), usando `XMLHttpRequest` em vez de `fetch` p
 
 Fluxo em `app.js`:
 
-1. Sem `xstream_server_url` no `localStorage` → tela de **setup**. O campo aceita a forma
+1. Sem `garratv_server_url` no `localStorage` → tela de **setup**. O campo aceita a forma
    mais curta possível (`192.168.0.10`) e `normalizeServerUrl` completa esquema e a porta
    padrão 3000. "Continuar" só avança depois de um GET bem-sucedido em `/api/remote-access`,
    que é a única rota que responde sem credencial nenhuma.
-2. Sem `xstream_device_token` → **pareamento**: `POST /api/devices/pair/start` com o nome do
+2. Sem `garratv_device_token` → **pareamento**: `POST /api/devices/pair/start` com o nome do
    aparelho (Luna no webOS, `tizen.systeminfo` no Tizen, rótulo genérico como fallback com
    timeout de 2s), exibe o código, e faz poll de 2 em 2 segundos com contagem regressiva.
 3. Com os dois → `window.location.replace(servidor + '/api/devices/session?token=...')`.

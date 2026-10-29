@@ -5,7 +5,10 @@ import {
     getCacheKey,
     performPeriodicCleanup,
     fetchWithRetry,
-    parseResponse
+    parseResponse,
+    infoCacheKey,
+    readInfoCache,
+    writeInfoCache,
 } from './cache';
 import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import { publicUserInfo, readCredentials } from '@/app/lib/liveShare';
@@ -113,6 +116,12 @@ export async function POST(request: Request) {
             console.log(`[Proxy] Params:`, JSON.stringify(otherParams));
         }
 
+        const infoKey = infoCacheKey(hostUrl, username, action || '', otherParams);
+        if (infoKey) {
+            const hit = readInfoCache(infoKey, action);
+            if (hit !== undefined) return NextResponse.json(withoutPassword(hit));
+        }
+
         const response = await fetchWithRetry(apiUrl, action);
 
         if (!response.ok) {
@@ -123,6 +132,7 @@ export async function POST(request: Request) {
         }
 
         const data = await parseResponse(response);
+        if (infoKey) writeInfoCache(infoKey, data);
         const count = Array.isArray(data) ? data.length : 'object';
         console.log(`[Proxy] Data: ${count} items/type`);
 

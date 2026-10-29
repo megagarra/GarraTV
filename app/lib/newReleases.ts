@@ -1,7 +1,7 @@
 import 'server-only';
 
 import type { ContentType } from './dbTypes';
-import { toCatalogItem, parseAddedAt, type CatalogItem } from './catalogItem';
+import { toCatalogItem, type CatalogItem } from './catalogItem';
 import * as sqlite from './sqliteCache';
 import { listWatchedTitles } from './userStore';
 
@@ -35,11 +35,10 @@ export function getNewReleases(profileId: string, now = Date.now()): NewReleaseI
     const candidates: { id: string; type: ContentType; addedAt: number }[] = [];
 
     for (const type of ['series', 'movie'] as const) {
-        for (const row of sqlite.getStreamDates(type)) {
-            const addedAt = parseAddedAt(row.last_modified ?? row.added);
-            if (addedAt < since) continue;
+        // Indexed range on the write-time `added_at`, instead of parsing every row.
+        for (const row of sqlite.getStreamsAddedSince(type, since)) {
             if (type === 'movie' && startedMovies.has(row.id)) continue;
-            candidates.push({ id: row.id, type, addedAt });
+            candidates.push({ id: row.id, type, addedAt: row.addedAt });
         }
     }
 

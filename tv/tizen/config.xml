@@ -8,20 +8,20 @@
 -->
 <widget xmlns="http://www.w3.org/ns/widgets"
         xmlns:tizen="http://tizen.org/ns/widgets"
-        id="http://xstreamplayer.com/tv"
+        id="http://garratv.com/tv"
         version="0.0.0"
         viewmodes="maximized">
 
-    <name>XStream Player</name>
-    <description>Cliente de TV do XStream Player</description>
+    <name>GarraTV</name>
+    <description>Cliente de TV do GarraTV</description>
 
     <author email="jsolemos@gmail.com">Janderson Lemos</author>
 
     <content src="index.html"/>
     <icon src="icon.png"/>
 
-    <tizen:application id="XstrmPlyr0.XStreamPlayer"
-                       package="XstrmPlyr0"
+    <tizen:application id="GarraTVApp.GarraTV"
+                       package="GarraTVApp"
                        required_version="6.0"/>
 
     <tizen:profile name="tv"/>

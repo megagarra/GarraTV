@@ -18,6 +18,10 @@ const eslintConfig = defineConfig([
     // Claude Code agent worktrees: full repo copies (with their own .next
     // builds) that would otherwise be linted and make the run take minutes.
     ".claude/worktrees/**",
+    // Android packaging: the staged copy and the exported bundle are build output.
+    ".android-pkg/**",
+    "android/app/**",
+    "android/build/**",
   ]),
 ]);
 

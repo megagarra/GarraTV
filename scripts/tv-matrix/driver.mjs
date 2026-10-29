@@ -313,7 +313,7 @@ export class TvBrowser {
                 textLength: text.length,
                 textSample: text.slice(0, 160),
                 visibleBlocks: visible,
-                errors: (window.__XSTREAM_ERRORS || []).slice(0, 10),
+                errors: (window.__GARRATV_ERRORS || []).slice(0, 10),
                 focus: focus,
                 collapsed: collapsed,
                 insetUnparsed: insetUnparsed,

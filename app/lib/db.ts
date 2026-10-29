@@ -7,7 +7,63 @@ interface CacheResponse<T> {
     data: T | null;
 }
 
+/**
+ * Catalog reads only change when a sync finishes (DataContext then calls
+ * clearClientCache), so navigating Home -> Filmes -> Detalhe -> back reuses them
+ * instead of asking the server again. Concurrent identical requests share one fetch.
+ */
+const CACHEABLE = new Set([
+    'getCategories',
+    'getStreams',
+    'searchStreams',
+    'getStreamCount',
+    'getCategoryCounts',
+    'listCatalog',
+    'pageCatalog',
+    'countDatedStreams',
+    'listStreams',
+    'getRecentStreams',
+    'getStreamsByIds',
+    'getDetail',
+]);
+const CLIENT_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_CLIENT_CACHE_ENTRIES = 300;
+
+interface ClientCacheEntry {
+    at: number;
+    value: Promise<unknown>;
+}
+
+const clientCache = new Map<string, ClientCacheEntry>();
+
+/** Drops every cached catalog read; called when a sync completes. */
+export function clearClientCache(): void {
+    clientCache.clear();
+}
+
+function forgetDetail(type: ContentType, id: string | number) {
+    clientCache.delete(`getDetail:${JSON.stringify({ type, id })}`);
+}
+
 async function requestCache<T>(action: string, payload: Record<string, unknown> = {}): Promise<T | undefined> {
+    if (!CACHEABLE.has(action)) return fetchLibrary<T>(action, payload);
+
+    const key = `${action}:${JSON.stringify(payload)}`;
+    const hit = clientCache.get(key);
+    if (hit && Date.now() - hit.at < CLIENT_CACHE_TTL_MS) return hit.value as Promise<T | undefined>;
+
+    const value = fetchLibrary<T>(action, payload);
+    clientCache.set(key, { at: Date.now(), value });
+    // A failed read must not stick.
+    value.catch(() => clientCache.delete(key));
+    if (clientCache.size > MAX_CLIENT_CACHE_ENTRIES) {
+        const oldest = clientCache.keys().next().value;
+        if (oldest !== undefined) clientCache.delete(oldest);
+    }
+    return value;
+}
+
+async function fetchLibrary<T>(action: string, payload: Record<string, unknown>): Promise<T | undefined> {
     const response = await apiFetch('/api/library', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,6 +91,7 @@ async function writeCache(action: string, payload: Record<string, unknown> = {})
 }
 
 export const saveDetail = async (type: ContentType, id: string | number, data: unknown) => {
+    forgetDetail(type, id);
     await writeCache('saveDetail', { type, id, data });
 };
 
@@ -74,6 +131,25 @@ export const listCatalog = async (type: ContentType, categoryId?: string): Promi
     return await requestCache<CachedStream[]>('listCatalog', { type, categoryId }) ?? [];
 };
 
+export type CatalogOrder = 'name' | 'added' | 'rating';
+
+export interface CatalogPage {
+    items: CachedStream[];
+    total: number;
+}
+
+/** One sorted page of a grid plus the full list size (server-side, indexed). */
+export const pageCatalog = async (query: {
+    type: ContentType;
+    categoryId?: string;
+    recentOnly?: boolean;
+    order: CatalogOrder;
+    limit: number;
+    offset: number;
+}): Promise<CatalogPage> => {
+    return await requestCache<CatalogPage>('pageCatalog', { ...query }) ?? { items: [], total: 0 };
+};
+
 export const countDatedStreams = async (type: ContentType): Promise<number> => {
     return await requestCache<number>('countDatedStreams', { type }) ?? 0;
 };
@@ -105,6 +181,7 @@ export const getSyncMetadata = async (type: string): Promise<SyncMetadata | unde
 };
 
 export const clearCache = async () => {
+    clearClientCache();
     await writeCache('clearCache');
 };
 

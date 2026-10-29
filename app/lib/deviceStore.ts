@@ -84,7 +84,7 @@ interface DeviceRow {
     platform: DevicePlatform;
     token_hash: string;
     profile_id: string | null;
-    /** Stable client-generated id (localStorage `xstream_device_id`), when the client sent one. */
+    /** Stable client-generated id (localStorage `garratv_device_id`), when the client sent one. */
     client_id: string | null;
     created_at: number;
     last_seen_at: number;

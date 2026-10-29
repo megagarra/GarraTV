@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 interface PairStartRequestBody {
     deviceName?: string;
     platform?: string;
-    /** Stable per-install id from the client (localStorage `xstream_device_id`), used to
+    /** Stable per-install id from the client (localStorage `garratv_device_id`), used to
      *  dedupe when the same TV re-pairs. Optional: older bootstraps do not send it. */
     clientId?: string;
 }

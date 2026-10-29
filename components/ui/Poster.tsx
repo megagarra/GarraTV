@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Star } from 'lucide-react';
 import Badge from './Badge';
 import { formatRating } from '@/app/lib/formatRating';
+import { favoriteTargetProps, type FavoriteType } from '@/app/lib/favoriteTarget';
 
 export type PosterRatio = 'poster' | 'wide' | 'square';
 
@@ -21,6 +22,9 @@ export interface PosterProps {
     progress?: number;
     className?: string;
     onFocus?: React.FocusEventHandler<HTMLAnchorElement>;
+    /** Makes holding OK on the poster toggle this favorite (components/RemoteFavorites.tsx). */
+    favoriteType?: FavoriteType;
+    favoriteId?: string | number;
 }
 
 const RATIO_CLASSNAME: Record<PosterRatio, string> = {
@@ -41,6 +45,8 @@ export default function Poster({
     progress,
     className = '',
     onFocus,
+    favoriteType,
+    favoriteId,
 }: PosterProps) {
     // Tracked locally: `onError` on <img> only fires once per broken URL, so
     // we swap in a fallback block instead of leaving a hole in the layout.
@@ -54,6 +60,7 @@ export default function Poster({
         <Link
             href={href}
             data-focusable="true"
+            {...(favoriteType && favoriteId !== undefined ? favoriteTargetProps(favoriteType, favoriteId, title, image, rating) : {})}
             tabIndex={0}
             onFocus={onFocus}
             className={['spotlight-item focus-card block', className].join(' ')}

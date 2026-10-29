@@ -148,7 +148,7 @@ export default function WatchSeriesPage() {
     const [broadcastStart, setBroadcastStart] = useState<{ episodeId: string; start: number } | null>(null);
     // "Join" (Modo TV) params — via useSearchParams to work on the client.
     const searchParams = useSearchParams();
-    // Opened straight into the player (StreamFlix episode list, continue watching):
+    // Opened straight into the player (GarraTV episode list, continue watching):
     // closing it returns to where the user came from instead of this detail screen.
     const [openedToPlay] = useState(() => searchParams.get('autoplay') === 'true');
     const isJoining = searchParams.get('join') === '1';

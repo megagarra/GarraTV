@@ -11,8 +11,25 @@ interface StoredCredentials {
     password: string;
 }
 
+// Every relay segment and API call asks for the account; a few seconds of memo
+// keeps that off the disk without letting a sign-in/out go unnoticed for long.
+const CREDENTIALS_MEMO_MS = 3000;
+let credentialsMemo: { at: number; value: Promise<StoredCredentials | null> } | null = null;
+
 /** The Xtream account saved on the server, or null when none is configured. */
-export async function readCredentials(): Promise<StoredCredentials | null> {
+export function readCredentials(): Promise<StoredCredentials | null> {
+    if (credentialsMemo && Date.now() - credentialsMemo.at < CREDENTIALS_MEMO_MS) return credentialsMemo.value;
+    const value = readCredentialsFromDisk();
+    credentialsMemo = { at: Date.now(), value };
+    return value;
+}
+
+/** Call after writing config.json so the next read sees the change at once. */
+export function forgetCredentials(): void {
+    credentialsMemo = null;
+}
+
+async function readCredentialsFromDisk(): Promise<StoredCredentials | null> {
     try {
         const raw = await fs.readFile(CONFIG_PATH, 'utf-8');
         const parsed = JSON.parse(raw);

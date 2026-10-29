@@ -231,7 +231,7 @@
 
       function canUseLocalStorage() {
         return safe(function () {
-          var key = '__xstream_debug__';
+          var key = '__garratv_debug__';
           window.localStorage.setItem(key, '1');
           window.localStorage.removeItem(key);
           return true;
@@ -322,7 +322,7 @@
         var sourceBuffer = 'SourceBuffer' in window;
         var blobUrl = 'Blob' in window && 'URL' in window && typeof URL.createObjectURL === 'function';
         var localStorageOk = canUseLocalStorage();
-        var hasAuth = !!localStorageValue('xstream_auth');
+        var hasAuth = !!localStorageValue('garratv_auth');
         var cssGrid = safe(function () { return window.CSS && CSS.supports && CSS.supports('display', 'grid'); }, false);
         var flexGap = safe(function () { return window.CSS && CSS.supports && CSS.supports('row-gap', '1px') && CSS.supports('display', 'flex'); }, false);
 
@@ -334,7 +334,7 @@
           ['Sincronização de lista', typeof XMLHttpRequest !== 'undefined' ? 'ok' : 'fail', typeof XMLHttpRequest !== 'undefined' ? 'XHR suportado para sincronização' : 'XHR ausente'],
           ['Banco local', 'indexedDB' in window ? 'ok' : 'fail', 'indexedDB' in window ? 'IndexedDB disponível' : 'IndexedDB ausente'],
           ['Sessão local', localStorageOk ? 'ok' : 'fail', localStorageOk ? 'localStorage gravável' : 'localStorage bloqueado'],
-          ['Login salvo', hasAuth ? 'ok' : 'warn', hasAuth ? 'xstream_auth encontrado no localStorage' : 'xstream_auth não encontrado'],
+          ['Login salvo', hasAuth ? 'ok' : 'warn', hasAuth ? 'garratv_auth encontrado no localStorage' : 'garratv_auth não encontrado'],
           ['Cookies', navigator.cookieEnabled ? 'ok' : 'warn', navigator.cookieEnabled ? 'Cookies habilitados' : 'Cookies desabilitados'],
           ['Blob/Object URL', blobUrl ? 'ok' : 'warn', blobUrl ? 'Necessário para legendas salvas' : 'Legendas locais podem falhar'],
           ['AbortController', typeof AbortController !== 'undefined' ? 'ok' : 'warn', typeof AbortController !== 'undefined' ? 'Cancelamento de requests disponível' : 'Usando fallback/timeout simples'],

@@ -1,5 +1,5 @@
-import DashboardChrome from '@/components/streamflix/DashboardChrome';
-import { manrope, montserrat } from '@/app/streamflix/fonts';
+import DashboardChrome from '@/components/garratv/DashboardChrome';
+import { manrope, montserrat } from '@/app/garratv/fonts';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (

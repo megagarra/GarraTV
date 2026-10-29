@@ -58,6 +58,12 @@ const VOD_TTL_MS = 30 * 60 * 1000;
 const MAX_ITEMS = 5;
 const MAX_LIVE_CANDIDATES = 18;
 const FETCH_TIMEOUT_MS = 6000;
+/**
+ * Provider requests in flight at once. Xtream accounts commonly allow a single
+ * connection (max_connections: 1) and reset the extras; the picks rebuild in the
+ * background (stale-while-revalidate), so sequential costs nobody a wait.
+ */
+const PROVIDER_CONCURRENCY = 1;
 
 /**
  * Channels probed for "what's on", in priority order. Sports first (a live match
@@ -131,16 +137,35 @@ interface CachedEntry {
 
 const cache = new Map<string, CachedEntry>();
 
+const settled = new Map<string, SpotlightItem[]>();
+
+/**
+ * Stale-while-revalidate: once a key has been built, an expired entry still
+ * answers immediately with the last result while the rebuild runs in the
+ * background, so no visitor ever waits on the EPG/XMLTV round trips again.
+ */
 function cached(key: string, ttl: number, load: () => Promise<SpotlightItem[]>): Promise<SpotlightItem[]> {
     const hit = cache.get(key);
     if (hit && Date.now() - hit.at < ttl) return hit.value;
-    const value = load().catch((error: unknown) => {
-        console.error('[Spotlight] Failed to build', key, error);
-        cache.delete(key);
-        return [] as SpotlightItem[];
-    });
+    const value = load()
+        .then((items) => {
+            settled.set(key, items);
+            return items;
+        })
+        .catch((error: unknown) => {
+            console.error('[Spotlight] Failed to build', key, error);
+            cache.delete(key);
+            return settled.get(key) ?? [] as SpotlightItem[];
+        });
     cache.set(key, { at: Date.now(), value });
-    return value;
+    const stale = settled.get(key);
+    return stale ? Promise.resolve(stale) : value;
+}
+
+/** Drops built picks (after a catalog sync) and rebuilds them in the background. */
+export function refreshSpotlight(language: string): void {
+    cache.clear();
+    void getSpotlight(language);
 }
 
 async function fetchJson<T>(url: string): Promise<T | null> {
@@ -211,6 +236,7 @@ async function nowPlaying(base: string, user: string, pass: string, streamId: st
 const XMLTV_TTL_MS = 3 * 60 * 60 * 1000;
 const XMLTV_MAX_BYTES = 120 * 1024 * 1024;
 const XMLTV_WINDOW_SEC = 8 * 60 * 60;
+const XMLTV_TIMEOUT_MS = 20 * 1000;
 
 interface XmltvCache {
     account: string;
@@ -247,7 +273,15 @@ function unescapeXml(value: string): string {
 
 async function downloadXmltv(url: string, wanted: Set<string>): Promise<Map<string, Programme[]>> {
     const byChannel = new Map<string, Programme[]>();
-    const response = await fetch(url);
+    // Bounded: a panel that never answers must not pin the rebuild forever.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), XMLTV_TIMEOUT_MS);
+    let response: Response;
+    try {
+        response = await fetch(url, { signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
     if (!response.ok || !response.body) return byChannel;
 
     const nowSec = Math.floor(Date.now() / 1000);
@@ -373,9 +407,9 @@ async function buildLive(language: string, creds: SpotlightCredentials | null): 
     const candidates = liveCandidates();
 
     const found: (Programme | null)[] = [];
-    // A few at a time: the provider counts concurrent API calls.
-    for (let i = 0; i < candidates.length; i += 4) {
-        const batch = candidates.slice(i, i + 4);
+    // One at a time: many accounts allow a single provider connection.
+    for (let i = 0; i < candidates.length; i += PROVIDER_CONCURRENCY) {
+        const batch = candidates.slice(i, i + PROVIDER_CONCURRENCY);
         found.push(...await Promise.all(batch.map(({ stream }) => nowPlaying(base, creds.username, creds.password, String(stream.id)))));
     }
 
@@ -404,27 +438,35 @@ async function buildLive(language: string, creds: SpotlightCredentials | null): 
     const key = await tmdbKey();
     const items: SpotlightItem[] = [];
     const seenTitles = new Set<string>();
-    for (const { stream, programme, parsed } of scored) {
-        if (items.length >= 3) break;
-        const titleKey = parsed.title.toLowerCase();
+    const picked: typeof scored = [];
+    for (const entry of scored) {
+        if (picked.length >= 3) break;
+        const titleKey = entry.parsed.title.toLowerCase();
         if (seenTitles.has(titleKey)) continue;
         seenTitles.add(titleKey);
+        picked.push(entry);
+    }
 
+    // Image lookups (catalog, then TMDB) run side by side, not one after another.
+    // A matchup has no trustworthy photo; the card lays out the teams instead.
+    const images = await Promise.all(picked.map(({ parsed }) =>
+        parsed.matchup ? Promise.resolve(undefined) : programmeImage(parsed.title, key, language)));
+
+    picked.forEach(({ stream, programme, parsed }, index) => {
         items.push({
             title: parsed.title,
             kicker: parsed.kicker,
             startsAt: parsed.startsAt,
             subtitle: stream.name,
-            // A matchup has no trustworthy photo; the card lays out the teams instead.
-            image: parsed.matchup ? undefined : await programmeImage(parsed.title, key, language),
+            image: images[index],
             logo: httpUrl(stream.icon),
             start: programme.start,
             end: programme.end,
             matchup: parsed.matchup,
-            href: `/streamflix/live?channel=${encodeURIComponent(String(stream.id))}`,
+            href: `/garratv/live?channel=${encodeURIComponent(String(stream.id))}`,
             reason: parsed.startsAt ? 'today' : 'now',
         });
-    }
+    });
     return items;
 }
 
@@ -474,7 +516,7 @@ async function trending(type: 'movie' | 'series', key: string, language: string)
             title: cleanSearchQuery(match.name) || match.name,
             subtitle: vodSubtitle(match),
             image: entry.backdrop_path ? `${TMDB_IMAGE}${entry.backdrop_path}` : wideImage(match),
-            href: `/streamflix/title/${type}/${encodeURIComponent(String(match.id))}`,
+            href: `/garratv/title/${type}/${encodeURIComponent(String(match.id))}`,
             reason: 'trending',
         });
     }
@@ -497,8 +539,8 @@ async function withMovieDetails(streams: CachedStream[], creds: SpotlightCredent
     const enriched: CachedStream[] = [];
     const base = creds ? creds.hostUrl.replace(/\/$/, '') : '';
     const probe = streams.slice(0, DETAIL_PROBES);
-    for (let i = 0; i < probe.length; i += 4) {
-        const batch = probe.slice(i, i + 4);
+    for (let i = 0; i < probe.length; i += PROVIDER_CONCURRENCY) {
+        const batch = probe.slice(i, i + PROVIDER_CONCURRENCY);
         const details = await Promise.all(batch.map(async (stream) => {
             const cachedDetail = sqlite.getDetail('movie', stream.id) as VodInfoPayload | undefined;
             if (cachedDetail?.info || !creds) return cachedDetail ?? null;
@@ -576,7 +618,7 @@ async function newest(type: 'movie' | 'series', exclude: Set<string>, limit: num
         subtitle: vodSubtitle(stream),
         image: hasBackdrop(stream) ? wideImage(stream) : undefined,
         poster: httpUrl(stream.cover) || httpUrl(stream.icon),
-        href: `/streamflix/title/${type}/${encodeURIComponent(String(stream.id))}`,
+        href: `/garratv/title/${type}/${encodeURIComponent(String(stream.id))}`,
         reason: 'new' as const,
     }));
 }

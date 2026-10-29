@@ -57,6 +57,33 @@ function pruneSegmentCache() {
 }
 
 /** Busca upstream (seguindo redirects) coalescendo chamadas concorrentes. */
+/**
+ * Where a channel URL last redirected to. Xtream panels answer every playlist
+ * poll (every couple of seconds per viewer) with a 302 to a tokenized CDN URL;
+ * going straight to that URL for a while saves one round trip per poll.
+ */
+const REDIRECT_TTL_MS = 60 * 1000;
+const redirects = new Map<string, { url: string; at: number }>();
+
+async function fetchFollowingKnownRedirect(targetUrl: string): Promise<Response> {
+    const known = redirects.get(targetUrl);
+    if (known && Date.now() - known.at < REDIRECT_TTL_MS) {
+        const direct = await fetch(known.url, { redirect: 'follow' }).catch(() => null);
+        if (direct && direct.ok) return direct;
+        // The token expired or the CDN moved: ask the panel again.
+        redirects.delete(targetUrl);
+    }
+    const upstream = await fetch(targetUrl, { redirect: 'follow' });
+    if (upstream.ok && upstream.url && upstream.url !== targetUrl) {
+        redirects.set(targetUrl, { url: upstream.url, at: Date.now() });
+        if (redirects.size > 500) {
+            const oldest = redirects.keys().next().value;
+            if (oldest !== undefined) redirects.delete(oldest);
+        }
+    }
+    return upstream;
+}
+
 async function fetchShared(targetUrl: string, ttl: number, trustedOrigins: Set<string>): Promise<CacheEntry> {
     const now = Date.now();
     const cached = cache.get(targetUrl);
@@ -68,7 +95,7 @@ async function fetchShared(targetUrl: string, ttl: number, trustedOrigins: Set<s
     if (existing) return existing;
 
     const promise = (async () => {
-        const upstream = await fetch(targetUrl, { redirect: 'follow' });
+        const upstream = await fetchFollowingKnownRedirect(targetUrl);
         if (!upstream.ok) {
             throw new Error(`Upstream ${upstream.status}`);
         }
@@ -99,6 +126,70 @@ async function fetchShared(targetUrl: string, ttl: number, trustedOrigins: Set<s
         return await promise;
     } finally {
         inFlight.delete(targetUrl);
+    }
+}
+
+/**
+ * First viewer of a segment: its bytes go out as they arrive (instead of after
+ * the whole segment is downloaded) while a second branch fills the shared cache
+ * for the other viewers. Returns null when the target turns out to be a
+ * playlist, which needs rewriting and so takes the buffered path.
+ */
+async function streamSegment(targetUrl: string, trustedOrigins: Set<string>): Promise<NextResponse | null> {
+    if (inFlight.has(targetUrl)) return null;
+    const cached = cache.get(targetUrl);
+    if (cached && cached.expiresAt > Date.now()) return null;
+
+    // Registered before the first await, so a second viewer asking for the same
+    // segment a moment later waits on this download instead of starting another.
+    let settle!: (entry: CacheEntry) => void;
+    let fail!: (error: unknown) => void;
+    const filling = new Promise<CacheEntry>((resolve, reject) => {
+        settle = resolve;
+        fail = reject;
+    });
+    filling.catch(() => undefined).finally(() => inFlight.delete(targetUrl));
+    inFlight.set(targetUrl, filling);
+
+    try {
+        const upstream = await fetch(targetUrl, { redirect: 'follow' });
+        if (!upstream.ok || !upstream.body) throw new Error(`Upstream ${upstream.status}`);
+        const finalUrl = upstream.url || targetUrl;
+        const contentType = upstream.headers.get('content-type') || '';
+        try {
+            trustedOrigins.add(new URL(finalUrl).origin);
+        } catch {
+            /* ignore */
+        }
+
+        if (looksLikePlaylist(finalUrl, contentType)) {
+            // Rare (a playlist without .m3u8 in its URL): buffered, since it needs rewriting.
+            const entry: CacheEntry = { body: await upstream.arrayBuffer(), contentType, finalUrl, expiresAt: Date.now() + PLAYLIST_TTL_MS };
+            cache.set(targetUrl, entry);
+            settle(entry);
+            return null;
+        }
+
+        const [toClient, toCache] = upstream.body.tee();
+        new Response(toCache).arrayBuffer().then((body) => {
+            const entry: CacheEntry = { body, contentType: contentType || 'video/mp2t', finalUrl, expiresAt: Date.now() + SEGMENT_TTL_MS };
+            if (body.byteLength <= MAX_SEGMENT_CACHE_BYTES) {
+                cache.set(targetUrl, entry);
+                pruneSegmentCache();
+            }
+            settle(entry);
+        }, fail);
+
+        return new NextResponse(toClient, {
+            status: 200,
+            headers: {
+                'content-type': contentType || 'video/mp2t',
+                'cache-control': 'no-store',
+            },
+        });
+    } catch (error) {
+        fail(error);
+        throw error;
     }
 }
 
@@ -219,6 +310,11 @@ export async function GET(request: Request) {
     const playlistHint = targetUrl.includes('.m3u8');
 
     try {
+        if (!playlistHint) {
+            const streamed = await streamSegment(targetUrl, trustedOrigins);
+            if (streamed) return streamed;
+        }
+
         const entry = await fetchShared(targetUrl, playlistHint ? PLAYLIST_TTL_MS : SEGMENT_TTL_MS, trustedOrigins);
 
         if (looksLikePlaylist(entry.finalUrl, entry.contentType)) {

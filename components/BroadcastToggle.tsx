@@ -2,6 +2,7 @@
 
 import { Radio } from 'lucide-react';
 import { useT } from '@/app/context/I18nContext';
+import { useIsAndroidApp } from '@/app/hooks/useIsAndroidApp';
 
 export interface BroadcastToggleProps {
     active: boolean;
@@ -18,6 +19,10 @@ export interface BroadcastToggleProps {
  */
 export default function BroadcastToggle({ active, onToggle, disabled = false }: BroadcastToggleProps) {
     const t = useT();
+    // Broadcasting relays one stream to other devices through the server; the
+    // Android app has none.
+    const android = useIsAndroidApp();
+    if (android) return null;
     return (
         <button
             onClick={onToggle}

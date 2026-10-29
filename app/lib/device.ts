@@ -1,8 +1,8 @@
 'use client';
 
-const DEVICE_ID_KEY = 'xstream_device_id';
-const DEVICE_NAME_KEY = 'xstream_device_name';
-const AUTO_BROADCAST_KEY = 'xstream_auto_broadcast';
+const DEVICE_ID_KEY = 'garratv_device_id';
+const DEVICE_NAME_KEY = 'garratv_device_name';
+const AUTO_BROADCAST_KEY = 'garratv_auto_broadcast';
 
 function randomId(): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {

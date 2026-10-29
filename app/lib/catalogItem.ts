@@ -48,10 +48,10 @@ function parseRating(stream: CachedStream): number | undefined {
     return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-// VOD opens the StreamFlix detail screen; live goes straight to the player.
+// VOD opens the GarraTV detail screen; live goes straight to the player.
 function buildHref(type: ContentType, id: string): string {
     if (type === 'live') return `/dashboard/watch/live/${id}`;
-    return `/streamflix/title/${type}/${id}`;
+    return `/garratv/title/${type}/${id}`;
 }
 
 export function toCatalogItem(stream: CachedStream): CatalogItem {

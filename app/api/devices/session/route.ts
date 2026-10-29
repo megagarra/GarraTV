@@ -32,7 +32,7 @@ const PROFILE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
  * which device to revoke. httpOnly: the client only needs to be *told* it is a
  * device (via `/api/devices`), never to read the id.
  */
-const DEVICE_SESSION_COOKIE_NAME = 'xstream_device';
+const DEVICE_SESSION_COOKIE_NAME = 'garratv_device';
 const DEVICE_SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 function isSecureRequest(request: Request) {
@@ -57,10 +57,10 @@ export async function GET(request: Request) {
         const device = token ? authenticateToken(token) : null;
 
         if (!device) {
-            return redirectTo(request, '/streamflix?deviceAuth=invalid');
+            return redirectTo(request, '/garratv?deviceAuth=invalid');
         }
 
-        const response = redirectTo(request, '/streamflix/home');
+        const response = redirectTo(request, '/garratv/home');
 
         // The remote-access session is signed with the PIN hash: with no PIN configured
         // there is nothing to sign, and the gate is not active either, so skip it.
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
     } catch (error) {
         // Never include the request URL here: it carries the device token.
         console.error('[Devices] Failed to open device session', error);
-        return redirectTo(request, '/streamflix?deviceAuth=invalid');
+        return redirectTo(request, '/garratv?deviceAuth=invalid');
     }
 }
 

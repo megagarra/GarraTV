@@ -454,7 +454,10 @@
         "pinRequired": "PIN de acesso remoto obrigatório",
         "pinNotConfigured": "PIN de acesso remoto não configurado"
     },
-    "streamflix": {
+    "garratv": {
+        "favoriteAdded": "Adicionado aos favoritos",
+        "favoriteRemoved": "Removido dos favoritos",
+        "navigation": "Navegação",
         "loginTitle": "Entrar com Xtream Codes",
         "serverUrl": "URL do servidor",
         "serverPlaceholder": "http://servidor.com:8080",
@@ -543,14 +546,8 @@
         "noAccountYet": "Ainda não tem um usuário Xtream Codes?",
         "watchFree": "Assistir canais grátis",
         "upgradeKicker": "Acesso completo",
-        "upgradeTitle": "Libere tudo",
-        "upgradePerkLive": "Todos os canais ao vivo, com guia de programação",
-        "upgradePerkMovies": "Catálogo completo de filmes, com lançamentos",
-        "upgradePerkSeries": "Séries completas, temporada por temporada, com continuar assistindo",
         "upgradeContact": "Para receber seu usuário Xtream Codes, entre em contato: {contact}",
         "upgradeContactGeneric": "Para receber seu usuário Xtream Codes, entre em contato com o administrador do serviço.",
-        "upgradeCta": "Falar com a gente",
-        "upgradeHaveAccess": "Já tenho acesso",
         "freeGroups": {
             "General": "Variedades",
             "Entertainment": "Entretenimento",
@@ -595,6 +592,19 @@
         "spotlightUntil": "até {time}",
         "spotlightTrending": "Em alta hoje",
         "spotlightNew": "Acabou de chegar",
-        "spotlightToday": "Hoje às {time}"
+        "spotlightToday": "Hoje às {time}",
+        "loadingTitle": "Preparando seu catálogo",
+        "loadingSubtitle": "Baixando canais, filmes e séries. O app abre assim que tudo estiver pronto.",
+        "loadingChecking": "Conferindo seu catálogo…",
+        "loadingWaiting": "Na fila",
+        "loadingDownloading": "Baixando lista do provedor…",
+        "loadingSaving": "Salvando {done} de {total}",
+        "loadingDone": "Pronto · {total}",
+        "loadingFailed": "Falhou",
+        "loadingOverall": "Progresso geral",
+        "loadingErrorTitle": "Não foi possível carregar o catálogo",
+        "loadingRetry": "Tentar de novo",
+        "loadingOtherAccount": "Entrar com outra conta",
+        "loadingCategories": "Baixando categoria {done} de {total}"
     }
 }

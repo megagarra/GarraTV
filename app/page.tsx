@@ -5,7 +5,7 @@ interface RootPageProps {
 }
 
 /**
- * StreamFlix is the default UI. Guests start on the free channels; signed-in
+ * GarraTV is the default UI. Guests start on the free channels; signed-in
  * users are sent on to their home by that page.
  */
 export default async function RootPage({ searchParams }: RootPageProps) {
@@ -17,5 +17,5 @@ export default async function RootPage({ searchParams }: RootPageProps) {
     }
     const suffix = query.toString();
     // Query strings (e.g. ?deviceAuth=invalid) belong to the sign-in screen.
-    redirect(suffix ? `/streamflix?${suffix}` : '/streamflix/free');
+    redirect(suffix ? `/garratv?${suffix}` : '/garratv/free');
 }

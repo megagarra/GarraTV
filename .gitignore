@@ -33,6 +33,10 @@ desktop/icon.png
 desktop/LICENSE
 dist/windows/
 
+# android packaging
+.android-pkg/
+dist/android/
+
 # misc
 .DS_Store
 *.pem

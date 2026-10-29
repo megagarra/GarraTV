@@ -14,15 +14,15 @@
  * the Edge runtime and consumes these helpers.
  */
 
-const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Xstream-Profile';
+const ALLOWED_HEADERS = 'Content-Type, Authorization, X-GarraTV-Profile';
 const ALLOWED_METHODS = 'GET, POST, PATCH, DELETE, OPTIONS';
 const MAX_AGE_SECONDS = '86400';
 /**
- * Response headers the foreign-origin TV client is allowed to read. `X-Xstream-Device-Auth`
+ * Response headers the foreign-origin TV client is allowed to read. `X-GarraTV-Device-Auth`
  * tells it whether a 401 means "the device token is dead, re-pair" or just "session cookie
  * expired" — without exposing it, a cross-origin `fetch` cannot see the header at all.
  */
-const EXPOSED_HEADERS = 'X-Xstream-Device-Auth';
+const EXPOSED_HEADERS = 'X-GarraTV-Device-Auth';
 
 /** Adds the CORS headers to a response, echoing the request Origin (including `null`). */
 export function withCors<T extends Response>(response: T, request: Request): T {

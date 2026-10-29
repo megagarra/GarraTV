@@ -1,8 +1,8 @@
-# Xstream Player
+# GarraTV
 
 ![App Screenshot](docs/screenshots/app-screenshot.png)
 
-A modern web application for IPTV content playback via Xstream Codes API, built with Next.js and React.
+A modern web application for IPTV content playback via GarraTV Codes API, built with Next.js and React.
 
 ## ⚠️ IMPORTANT SECURITY WARNING
 
@@ -28,7 +28,7 @@ This project aims to solve these issues by providing a centralized, modern, and 
 
 ## �📺 Features
 
-*   Xstream Codes API Support.
+*   GarraTV Codes API Support.
 *   Modern and responsive interface.
 *   Local data persistence for easy access.
 *   Playback of live channels, movies, and series (VOD).
@@ -97,7 +97,7 @@ See [`docs/tv-client.md`](docs/tv-client.md) for installing over Developer Mode 
 
 1.  Build the image:
     ```bash
-    docker build -t xstream-player .
+    docker build -t garratv .
     ```
 
 2.  Run the container with data persistence (essential for saving login):
@@ -105,8 +105,8 @@ See [`docs/tv-client.md`](docs/tv-client.md) for installing over Developer Mode 
     docker run -d \
       -p 3000:3000 \
       -v $(pwd)/data:/app/data \
-      --name xstream-player \
-      xstream-player
+      --name garratv \
+      garratv
     ```
 
     Or if you prefer to use the Docker Hub image (if available):
@@ -114,7 +114,7 @@ See [`docs/tv-client.md`](docs/tv-client.md) for installing over Developer Mode 
     docker run -d \
       -p 3000:3000 \
       -v $(pwd)/data:/app/data \
-      --name xstream-player \
+      --name garratv \
       jandersonss/xstream-player:latest
     ```
 
@@ -129,8 +129,8 @@ It is **essential** to bind this volume (`-v $(pwd)/data:/app/data`) to ensure y
 Example `docker-compose.yml`:
 ```yaml
 services:
-  xstream-player:
-    image: xstream-player
+  garratv:
+    image: garratv
     build: .
     ports:
       - "3000:3000"
@@ -174,7 +174,7 @@ there in your PR description — this lets the project keep its licensing option
 
 Copyright (C) 2026 Janderson Lemos.
 
-Xstream Player is free software, licensed under the
+GarraTV is free software, licensed under the
 **[GNU Affero General Public License v3.0](LICENSE)**.
 
 You may use, study, share, and modify it. If you distribute it — or run a modified

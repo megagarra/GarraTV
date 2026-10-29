@@ -17,7 +17,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 // `focus:ring-*` is intentionally absent — the global `[data-focusable="true"]:focus`
 // rule in globals.css owns every focus treatment in the app (spec 00 §4).
 const VARIANT_CLASSNAME: Record<ButtonVariant, string> = {
-    // StreamFlix: solid red primary, translucent grey secondary.
+    // GarraTV: solid red primary, translucent grey secondary.
     primary: 'bg-brand text-white hover:bg-brand-strong focus:bg-brand-strong',
     secondary: 'bg-[rgba(109,109,110,0.45)] text-ink hover:bg-[rgba(109,109,110,0.7)] focus:bg-[rgba(109,109,110,0.7)]',
     ghost: 'text-ink-2 hover:text-ink focus:text-ink',

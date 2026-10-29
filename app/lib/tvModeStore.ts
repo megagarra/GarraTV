@@ -12,7 +12,7 @@ import { dataDir } from './dataDir';
  * Its own database, separate from the other two: this state is disposable (every
  * row expires within seconds if the heartbeats stop) and write-hot, so it must not
  * live in user-data.sqlite (the irreplaceable backup target) nor in
- * xstream-player.sqlite (which users are told to delete to force a catalog re-sync).
+ * garratv.sqlite (which users are told to delete to force a catalog re-sync).
  * Deleting this file only costs a heartbeat: the devices re-announce themselves.
  *
  * It is on disk instead of in memory because the app may run in more than one

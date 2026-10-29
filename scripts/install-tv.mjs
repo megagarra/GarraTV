@@ -28,7 +28,7 @@ const deviceFromArg = (() => {
 })();
 const device = process.env.ARES_DEVICE || deviceFromArg || 'tv-sala';
 
-const appId = isDev ? 'com.xstreamplayer.tv.dev' : 'com.xstreamplayer.tv';
+const appId = isDev ? 'com.garratv.tv.dev' : 'com.garratv.tv';
 const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
 
 function run(command, commandArgs) {

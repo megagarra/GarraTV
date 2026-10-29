@@ -14,9 +14,10 @@ import {
     Settings,
     User,
 } from 'lucide-react';
-import { useData } from '@/app/context/DataContext';
+import { useData, useSyncStatus } from '@/app/context/DataContext';
 import { useProfile } from '@/app/context/ProfileContext';
 import { useT } from '@/app/context/I18nContext';
+import { useIsAndroidApp } from '@/app/hooks/useIsAndroidApp';
 import ProfileModal from './ProfileModal';
 
 interface NavItem {
@@ -27,12 +28,12 @@ interface NavItem {
 }
 
 const CONTENT_ITEMS: NavItem[] = [
-    { labelKey: 'home', icon: Home, path: '/streamflix/home' },
+    { labelKey: 'home', icon: Home, path: '/garratv/home' },
     { labelKey: 'search', icon: Search, path: '/dashboard/search' },
-    { labelKey: 'myList', icon: Bookmark, path: '/streamflix/favorites' },
-    { labelKey: 'live', icon: Tv, path: '/streamflix/live' },
-    { labelKey: 'movies', icon: Film, path: '/streamflix/movies' },
-    { labelKey: 'series', icon: Layers, path: '/streamflix/series' },
+    { labelKey: 'myList', icon: Bookmark, path: '/garratv/favorites' },
+    { labelKey: 'live', icon: Tv, path: '/garratv/live' },
+    { labelKey: 'movies', icon: Film, path: '/garratv/movies' },
+    { labelKey: 'series', icon: Layers, path: '/garratv/series' },
 ];
 
 const SYSTEM_ITEMS: NavItem[] = [
@@ -44,7 +45,9 @@ const SYSTEM_ITEMS: NavItem[] = [
 export default function NavRail() {
     const pathname = usePathname();
     const t = useT();
-    const { isSyncing, syncProgress } = useData();
+    const android = useIsAndroidApp();
+    const { isSyncing } = useData();
+    const { syncProgress } = useSyncStatus();
     const { activeProfile } = useProfile();
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -97,7 +100,7 @@ export default function NavRail() {
             {/* Brand — not focusable, decorative only. */}
             <div className="flex items-center px-4 pt-6 pb-4 flex-shrink-0 overflow-hidden whitespace-nowrap">
                 <span className="text-xl font-black text-brand tracking-tighter leading-none">X</span>
-                {/* "Xstream" is far wider than the 76px collapsed rail, so the
+                {/* "GarraTV" is far wider than the 76px collapsed rail, so the
                     wordmark would be clipped mid-letter. Collapsed, the X alone
                     carries the brand. */}
                 {isExpanded && (
@@ -132,7 +135,7 @@ export default function NavRail() {
 
             {/* System navigation */}
             <nav className="px-3 py-3 space-y-1 flex-shrink-0">
-                {SYSTEM_ITEMS.map(renderItem)}
+                {SYSTEM_ITEMS.filter((item) => !android || item.path !== '/dashboard/tv').map(renderItem)}
             </nav>
 
             {/* Sync indicator — status only; the action itself lives in Ajustes. */}

@@ -43,13 +43,13 @@ const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 
 /** webOS app id + display title per variant. */
 const WEBOS_APP = isDev
-    ? { id: 'com.xstreamplayer.tv.dev', title: 'XStream Player (Dev)' }
-    : { id: 'com.xstreamplayer.tv', title: 'XStream Player' };
+    ? { id: 'com.garratv.tv.dev', title: 'GarraTV (Dev)' }
+    : { id: 'com.garratv.tv', title: 'GarraTV' };
 
 /** Tizen package id (exactly 10 alnum), application id and name per variant. */
 const TIZEN_APP = isDev
-    ? { pkg: 'XstrmPlyrD', appId: 'XstrmPlyrD.XStreamPlayerDev', name: 'XStream Player (Dev)' }
-    : { pkg: 'XstrmPlyr0', appId: 'XstrmPlyr0.XStreamPlayer', name: 'XStream Player' };
+    ? { pkg: 'GarraTVDev', appId: 'GarraTVDev.GarraTVDev', name: 'GarraTV (Dev)' }
+    : { pkg: 'GarraTVApp', appId: 'GarraTVApp.GarraTV', name: 'GarraTV' };
 
 /** `versionArg`: the Tizen CLI rejects `--version` and only knows `tizen version`. */
 function has(command, versionArg = '--version') {
@@ -85,7 +85,7 @@ function stagePayload() {
     writeServerList();
 }
 
-/** Addresses where this machine serves the Streamflix app the TV should open. */
+/** Addresses where this machine serves the GarraTV app the TV should open. */
 function writeServerList() {
     const port = String(process.env.PORT || process.env.APP_PORT || '3000');
     const urls = [`http://10.0.2.2:${port}`];
@@ -103,7 +103,7 @@ function writeServerList() {
     const unique = [...new Set(urls)];
     fs.writeFileSync(
         path.join(staging, 'server.js'),
-        `/* Generated at package time. The TV opens the Streamflix app. */\nwindow.XSTREAM_SERVERS = ${JSON.stringify(unique)};\n`,
+        `/* Generated at package time. The TV opens the GarraTV app. */\nwindow.GARRATV_SERVERS = ${JSON.stringify(unique)};\n`,
     );
 }
 
@@ -145,7 +145,7 @@ function packageTizen() {
         console.error(
             '[package:tv] tizen CLI not found. Install Tizen Studio and put its\n' +
             '  tools/ide/bin on PATH, then create a signing profile with:\n' +
-            '  tizen security-profiles add -n xstream -a <author.p12> -p <password>',
+            '  tizen security-profiles add -n garratv -a <author.p12> -p <password>',
         );
         process.exit(1);
     }
@@ -153,9 +153,9 @@ function packageTizen() {
     const config = fs
         .readFileSync(path.join(root, 'tv', 'tizen', 'config.xml'), 'utf-8')
         .replace(/version="0\.0\.0"/, `version="${version}"`)
-        .replace(/id="XstrmPlyr0\.XStreamPlayer"/, `id="${TIZEN_APP.appId}"`)
-        .replace(/package="XstrmPlyr0"/, `package="${TIZEN_APP.pkg}"`)
-        .replace(/<name>XStream Player<\/name>/, `<name>${TIZEN_APP.name}</name>`);
+        .replace(/id="GarraTVApp\.GarraTV"/, `id="${TIZEN_APP.appId}"`)
+        .replace(/package="GarraTVApp"/, `package="${TIZEN_APP.pkg}"`)
+        .replace(/<name>GarraTV<\/name>/, `<name>${TIZEN_APP.name}</name>`);
 
     fs.writeFileSync(path.join(staging, 'config.xml'), config);
 

@@ -31,7 +31,7 @@ export type VodType = 'movie' | 'series';
 /** What a device reports about its own playback. */
 export type ConsumerState = 'playing' | 'paused' | 'stalled';
 
-const ROOT_DIR = path.join(os.tmpdir(), 'xstream-vod');
+const ROOT_DIR = path.join(os.tmpdir(), 'garratv-vod');
 const MAX_BROADCASTS = 3;
 const REAP_INTERVAL_MS = 5 * 1000;
 const SEGMENT_DURATION = 4;
@@ -516,8 +516,8 @@ export async function readSegment(key: string, name: string): Promise<Buffer | n
 
 // Initial orphan sweep (once per process). Does NOT delete the whole root —
 // only directories with old mtime, so it never removes a live broadcast from another process.
-const cleanupFlag = globalThis as unknown as { __xstreamVodSwept?: boolean };
-if (!cleanupFlag.__xstreamVodSwept) {
-    cleanupFlag.__xstreamVodSwept = true;
+const cleanupFlag = globalThis as unknown as { __garratvVodSwept?: boolean };
+if (!cleanupFlag.__garratvVodSwept) {
+    cleanupFlag.__garratvVodSwept = true;
     void sweepStaleDirs();
 }

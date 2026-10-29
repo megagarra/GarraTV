@@ -9,7 +9,7 @@ import { foldForSearch } from './searchText';
 import { dataDir } from './dataDir';
 
 const DATA_DIR = dataDir();
-const DB_PATH = path.join(DATA_DIR, 'xstream-player.sqlite');
+const DB_PATH = path.join(DATA_DIR, 'garratv.sqlite');
 
 let sqlite: Database.Database | null = null;
 
@@ -80,6 +80,21 @@ function toStreamParams(stream: CachedStream) {
         backdrop_path_json: stream.backdrop_path ? JSON.stringify(stream.backdrop_path) : null,
         last_modified: toNullable(stream.last_modified),
         search_name: foldForSearch(stream.name || ''),
+        ...derivedColumns(stream),
+    };
+}
+
+/**
+ * Sortable copies of the provider's free-form date and rating text, computed once
+ * at write time so "recent" and "by rating" are index lookups instead of a scan
+ * that parses every row in JS.
+ */
+function derivedColumns(stream: Pick<CachedStream, 'added' | 'last_modified' | 'rating' | 'rating_5based'>) {
+    const addedAt = parseAddedAt(stream.last_modified ?? stream.added);
+    const rating = Number.parseFloat(String(stream.rating ?? stream.rating_5based ?? ''));
+    return {
+        added_at: addedAt > 0 ? addedAt : null,
+        rating_num: Number.isFinite(rating) && rating > 0 ? rating : null,
     };
 }
 
@@ -119,6 +134,8 @@ const STREAMS_TABLE_SQL = (table: string) => `
         backdrop_path_json TEXT,
         last_modified TEXT,
         search_name TEXT,
+        added_at INTEGER,
+        rating_num REAL,
         PRIMARY KEY (id, type)
     );
 `;
@@ -141,10 +158,17 @@ const CATALOG_INDEXES_SQL = `
         ON categories (type);
     CREATE INDEX IF NOT EXISTS idx_streams_category_id
         ON streams (category_id);
-    CREATE INDEX IF NOT EXISTS idx_streams_type
-        ON streams (type);
+    DROP INDEX IF EXISTS idx_streams_type;
     CREATE INDEX IF NOT EXISTS idx_streams_type_category
         ON streams (type, category_id);
+    CREATE INDEX IF NOT EXISTS idx_streams_type_name
+        ON streams (type, name COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_streams_type_category_name
+        ON streams (type, category_id, name COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_streams_type_added
+        ON streams (type, added_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_streams_type_rating
+        ON streams (type, rating_num DESC);
 `;
 
 function getConnection() {
@@ -256,6 +280,29 @@ function migrateStreamsSchema(db: Database.Database) {
         })();
     }
 
+    if (!hasColumn('added_at') || !hasColumn('rating_num')) {
+        if (!hasColumn('added_at')) db.exec('ALTER TABLE streams ADD COLUMN added_at INTEGER');
+        if (!hasColumn('rating_num')) db.exec('ALTER TABLE streams ADD COLUMN rating_num REAL');
+        const rows = db
+            .prepare('SELECT id, type, added, last_modified, rating, rating_5based FROM streams')
+            .all() as { id: string; type: ContentType; added: string | null; last_modified: string | null; rating: string | null; rating_5based: string | null }[];
+        const update = db.prepare('UPDATE streams SET added_at = @added_at, rating_num = @rating_num WHERE id = @id AND type = @type');
+        db.transaction(() => {
+            for (const row of rows) {
+                update.run({
+                    id: row.id,
+                    type: row.type,
+                    ...derivedColumns({
+                        added: row.added ?? undefined,
+                        last_modified: row.last_modified ?? undefined,
+                        rating: row.rating ?? undefined,
+                        rating_5based: row.rating_5based ?? undefined,
+                    }),
+                });
+            }
+        })();
+    }
+
     const pending = db
         .prepare('SELECT id, type, name FROM streams WHERE search_name IS NULL')
         .all() as { id: string; type: ContentType; name: string }[];
@@ -312,8 +359,9 @@ const streamColumns = `
     last_modified
 `;
 
-// `search_name` is an internal matching column, never projected back to callers.
-const streamInsertColumns = `${streamColumns}, search_name`;
+// `search_name`, `added_at` and `rating_num` are internal sort/match columns,
+// never projected back to callers.
+const streamInsertColumns = `${streamColumns}, search_name, added_at, rating_num`;
 
 export function saveCategories(categories: CachedCategory[]) {
     if (categories.length === 0) return;
@@ -362,7 +410,7 @@ export function saveStreams(streams: CachedStream[]) {
             @container_extension, @epg_channel_id,
             @stream_type, @cover, @plot, @cast, @director, @genre,
             @release_date, @rating_5based, @backdrop_path_json,
-            @last_modified, @search_name
+            @last_modified, @search_name, @added_at, @rating_num
         )
         ON CONFLICT(id, type) DO UPDATE SET
             category_id = excluded.category_id,
@@ -382,7 +430,9 @@ export function saveStreams(streams: CachedStream[]) {
             rating_5based = excluded.rating_5based,
             backdrop_path_json = excluded.backdrop_path_json,
             last_modified = excluded.last_modified,
-            search_name = excluded.search_name
+            search_name = excluded.search_name,
+            added_at = excluded.added_at,
+            rating_num = excluded.rating_num
     `);
 
     const write = db.transaction((items: CachedStream[]) => {
@@ -584,13 +634,57 @@ export function listCatalog(type: ContentType, categoryId?: string): CachedStrea
     return rows.map(catalogRowToStream);
 }
 
-/** Titles that carry a provider date. Mixed epoch/ISO stamps are counted in JS. */
+/** Titles that carry a provider date (`added_at` is parsed at write time). */
 export function countDatedStreams(type: ContentType): number {
-    let count = 0;
-    for (const row of getStreamDates(type)) {
-        if (parseAddedAt(row.last_modified ?? row.added) > 0) count += 1;
-    }
-    return count;
+    const row = getConnection()
+        .prepare('SELECT COUNT(*) AS total FROM streams WHERE type = ? AND added_at > 0')
+        .get(type) as { total: number };
+    return row.total;
+}
+
+export type CatalogOrder = 'name' | 'added' | 'rating';
+
+export interface CatalogPageQuery {
+    type: ContentType;
+    categoryId?: string;
+    /** Only titles with a provider date ("Adicionados recentemente"). */
+    recentOnly?: boolean;
+    order: CatalogOrder;
+    limit: number;
+    offset: number;
+}
+
+const ORDER_SQL: Record<CatalogOrder, string> = {
+    name: 'name COLLATE NOCASE',
+    // NULLs sort last under DESC, so undated titles trail the dated ones.
+    added: 'added_at DESC, name COLLATE NOCASE',
+    rating: 'rating_num DESC, name COLLATE NOCASE',
+};
+
+/**
+ * One page of a grid plus the size of the whole list. The screens used to pull
+ * a 40k-row type in one response and sort it in the browser; every ordering is
+ * now backed by an index, so a page costs the same at the top or the bottom.
+ */
+export function pageCatalog(query: CatalogPageQuery): { items: CachedStream[]; total: number } {
+    const where: string[] = ['type = @type'];
+    if (query.categoryId) where.push('category_id = @categoryId');
+    if (query.recentOnly) where.push('added_at > 0');
+    const whereSql = where.join(' AND ');
+    const params = {
+        type: query.type,
+        categoryId: query.categoryId ?? null,
+        limit: Math.min(Math.max(query.limit, 1), 200),
+        offset: Math.max(query.offset, 0),
+    };
+    const db = getConnection();
+    const rows = db
+        .prepare(`SELECT ${catalogColumns} FROM streams WHERE ${whereSql} ORDER BY ${ORDER_SQL[query.order]} LIMIT @limit OFFSET @offset`)
+        .all(params) as CatalogRow[];
+    const { total } = db
+        .prepare(`SELECT COUNT(*) AS total FROM streams WHERE ${whereSql}`)
+        .get(params) as { total: number };
+    return { items: rows.map(catalogRowToStream), total };
 }
 
 /** A page of the real catalog. `added` ordering is epoch-seconds only; mixed ISO dates belong in `getRecentStreams`. */
@@ -603,9 +697,7 @@ export function listStreams(
 ): CachedStream[] {
     const safeLimit = Math.min(Math.max(limit, 1), 200);
     const safeOffset = Math.max(offset, 0);
-    const orderSql = order === 'rating'
-        ? 'CAST(rating AS REAL) DESC, name COLLATE NOCASE'
-        : 'name COLLATE NOCASE';
+    const orderSql = ORDER_SQL[order];
     const sql = categoryId
         ? `SELECT ${streamColumns} FROM streams WHERE type = ? AND category_id = ? ORDER BY ${orderSql} LIMIT ? OFFSET ?`
         : `SELECT ${streamColumns} FROM streams WHERE type = ? ORDER BY ${orderSql} LIMIT ? OFFSET ?`;
@@ -619,19 +711,17 @@ export function listStreams(
 /** Newest titles by the provider's added/modified stamp, not a fabricated "recent" shelf. */
 export function getRecentStreams(type: ContentType, limit = 60): CachedStream[] {
     const safeLimit = Math.min(Math.max(limit, 1), 200);
-    const ranked = getStreamDates(type)
-        .map((row) => ({ id: row.id, at: parseAddedAt(row.last_modified ?? row.added) }))
-        .filter((row) => row.at > 0)
-        .sort((a, b) => b.at - a.at)
-        .slice(0, safeLimit);
+    const rows = getConnection()
+        .prepare(`SELECT ${streamColumns} FROM streams WHERE type = ? AND added_at > 0 ORDER BY added_at DESC LIMIT ?`)
+        .all(type, safeLimit) as StreamRow[];
+    return rows.map(rowToStream);
+}
 
-    const byId = new Map(
-        getStreamsByIds(ranked.map((row) => row.id), type).map((stream) => [String(stream.id), stream]),
-    );
-
-    return ranked
-        .map((row) => byId.get(row.id))
-        .filter((stream): stream is CachedStream => stream !== undefined);
+/** Titles of a type added at or after `sinceMs`, newest first (indexed). */
+export function getStreamsAddedSince(type: ContentType, sinceMs: number): { id: string; addedAt: number }[] {
+    return (getConnection()
+        .prepare('SELECT id, added_at AS addedAt FROM streams WHERE type = ? AND added_at >= ? ORDER BY added_at DESC')
+        .all(type, sinceMs) as { id: string; addedAt: number }[]);
 }
 
 export function getStreamCount(type?: ContentType): number {
@@ -646,18 +736,27 @@ export function getStreamsByIds(ids: (string | number)[], type?: ContentType): C
     if (ids.length === 0) return [];
 
     // Without a type the same id can match one row per content type, so every match
-    // is returned and the caller disambiguates.
-    const stmt = getConnection().prepare(`
+    // is returned and the caller disambiguates. One query for the whole list (it was
+    // one per id); rows come back in the order the ids were given.
+    const wanted = ids.map(String);
+    const rows = getConnection().prepare(`
         SELECT ${streamColumns} FROM streams
-        WHERE id = @id AND (@type IS NULL OR type = @type)
-    `);
-    const streams: CachedStream[] = [];
+        WHERE id IN (SELECT value FROM json_each(@ids)) AND (@type IS NULL OR type = @type)
+    `).all({ ids: JSON.stringify(wanted), type: type ?? null }) as StreamRow[];
 
-    for (const id of ids) {
-        const rows = stmt.all({ id: String(id), type: type ?? null }) as StreamRow[];
-        streams.push(...rows.map(rowToStream));
+    const byId = new Map<string, CachedStream[]>();
+    for (const row of rows) {
+        const list = byId.get(row.id) ?? [];
+        list.push(rowToStream(row));
+        byId.set(row.id, list);
     }
-
+    const streams: CachedStream[] = [];
+    const seen = new Set<string>();
+    for (const id of wanted) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        streams.push(...(byId.get(id) ?? []));
+    }
     return streams;
 }
 

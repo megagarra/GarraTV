@@ -1,5 +1,5 @@
 /*
- * XStream Player — TV client.
+ * GarraTV — TV client.
  *
  * Installed on the television and talks to the viewer's IPTV provider directly,
  * the same way a Smarters-style player does. There is no home server to type
@@ -11,9 +11,9 @@
 (function () {
     'use strict';
 
-    var STORAGE_HOST = 'xstream_xtream_host';
-    var STORAGE_USER = 'xstream_xtream_user';
-    var STORAGE_PASS = 'xstream_xtream_pass';
+    var STORAGE_HOST = 'garratv_xtream_host';
+    var STORAGE_USER = 'garratv_xtream_user';
+    var STORAGE_PASS = 'garratv_xtream_pass';
 
     var REQUEST_TIMEOUT_MS = 25000;
     var KEY_BACK_TV = 461;
@@ -504,7 +504,7 @@
     }
 
     function bakedServers() {
-        var list = window.XSTREAM_SERVERS;
+        var list = window.GARRATV_SERVERS;
         var urls = [];
         if (!list || !list.length) return urls;
         for (var i = 0; i < list.length; i++) {
@@ -514,11 +514,11 @@
     }
 
     /**
-     * The packaged TV opens the real Streamflix app: the same login, the free
+     * The packaged TV opens the real GarraTV app: the same login, the free
      * channel list, and the rest of the layout. It does not ask for an address
      * and it does not ask anyone to approve the set.
      */
-    function openStreamflix() {
+    function openGarraTV() {
         var urls = bakedServers();
         if (!urls.length) return false;
 
@@ -528,11 +528,11 @@
 
         for (var i = 0; i < urls.length; i++) {
             (function (url) {
-                request(url + '/streamflix', function (status) {
+                request(url + '/garratv', function (status) {
                     if (opened) return;
                     if (status > 0) {
                         opened = true;
-                        window.location.replace(url + '/streamflix');
+                        window.location.replace(url + '/garratv');
                         return;
                     }
                     pending -= 1;
@@ -544,7 +544,7 @@
     }
 
     function boot() {
-        if (openStreamflix()) return;
+        if (openGarraTV()) return;
 
         var host = read(STORAGE_HOST);
         var username = read(STORAGE_USER);

@@ -3,7 +3,7 @@ name: open-pr
 description: Abre um PR neste repositório com a frase de aceite do CLA na descrição. Use quando o usuário pedir para criar um PR, abrir um pull request, ou submeter uma branch para review.
 ---
 
-Fluxo para abrir um PR no Xstream Player.
+Fluxo para abrir um PR no GarraTV.
 
 ## Antes de abrir
 

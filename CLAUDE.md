@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projeto
 
-Xstream Player — web app (Next.js 16 App Router, React 19, TypeScript) para reproduzir IPTV via API Xtream Codes. Uso em rede privada apenas: não há autenticação robusta e as credenciais IPTV ficam salvas em texto puro em `data/config.json`.
+GarraTV — web app (Next.js 16 App Router, React 19, TypeScript) para reproduzir IPTV via API Xtream Codes. Uso em rede privada apenas: não há autenticação robusta e as credenciais IPTV ficam salvas em texto puro em `data/config.json`.
 
 Idioma: **código e comentários sempre em inglês**; **textos de UI via i18n** (`useT()` / `translateForRequest`, chaves em `app/lib/i18n/translations/{pt-BR,en}.json`; pt-BR é a fonte da verdade das chaves; o idioma exibido segue o do sistema, com **inglês** como padrão); **mensagens de commit em inglês** (imperativo); **PRs e release notes em pt-BR**.
 
@@ -27,14 +27,14 @@ Não há suíte de testes configurada.
 ## Persistência (`data/`)
 
 Tudo em `data/` é **gitignored** (só `data/.keep` versionado) e persiste entre execuções. São **três bancos com ciclos de vida diferentes** — não misture:
-- `xstream-player.sqlite` — **cache descartável** de catálogo/streams. Apagar para forçar re-sync é operação normal. Aberto só por `app/lib/sqliteCache.ts`.
+- `garratv.sqlite` — **cache descartável** de catálogo/streams. Apagar para forçar re-sync é operação normal. Aberto só por `app/lib/sqliteCache.ts`.
 - `user-data.sqlite` — **dado do usuário, insubstituível**: perfis, favoritos e progresso (`profiles`, `favorites`, `watch_progress`). Aberto só por `app/lib/userStore.ts`. É o arquivo que importa no backup.
 - `tv-mode.sqlite` — **estado efêmero do Modo TV**: transmissões ativas e sync de reprodução (`share_sessions`, `sync_participants`, `sync_commands`). Toda linha expira em segundos sem heartbeat; apagar o arquivo só custa um heartbeat. Aberto só por `app/lib/tvModeStore.ts`.
 - Todos em modo WAL (+ `-shm`/`-wal`), sob `process.cwd()/data`.
 - JSONs de estado restantes: `config.json` (credenciais Xtream) e configs de TMDB/OpenSubtitles.
 - Legendas em `subtitles/<idioma>/subtitle-<streamId>.json` — cache compartilhado por todos os perfis, chaveado por idioma (o perfil só decide **qual** idioma pedir).
 
-**Perfis:** o perfil ativo viaja no cookie `xstream_profile`; as rotas resolvem por ele (`resolveProfileId(request)`), então o cliente nunca passa `profileId` à mão. Favoritos e progresso são sempre escopados por perfil.
+**Perfis:** o perfil ativo viaja no cookie `garratv_profile`; as rotas resolvem por ele (`resolveProfileId(request)`), então o cliente nunca passa `profileId` à mão. Favoritos e progresso são sempre escopados por perfil.
 
 ## Gotchas
 

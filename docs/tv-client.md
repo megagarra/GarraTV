@@ -1,7 +1,7 @@
 # Client de TV — instalar, distribuir e publicar
 
 O client de TV é um app instalável (LG webOS, Samsung Tizen) que **não** contém o catálogo nem
-as credenciais: ele encontra o servidor do XStream Player na rede, se faz autorizar por um
+as credenciais: ele encontra o servidor do GarraTV na rede, se faz autorizar por um
 código e entrega a navegação ao servidor. A arquitetura e o porquê estão em
 [`tv-client-spec.md`](./tv-client-spec.md).
 
@@ -14,7 +14,7 @@ código e entrega a navegação ao servidor. A arquitetura e o porquê estão em
 4. O dono aprova de um dos dois jeitos:
    - **Celular:** aponta a câmera para o QR code → abre **Dispositivos** com o código já
      preenchido; confere nome/perfil e toca em **Aprovar**.
-   - **Computador:** abre o XStream Player → **Dispositivos** e digita o código.
+   - **Computador:** abre o GarraTV → **Dispositivos** e digita o código.
    Em ambos os casos ele escolhe um nome e o perfil padrão do aparelho.
 5. A TV entra no app. Nas próximas vezes, entra direto.
 
@@ -28,8 +28,8 @@ Para desautorizar uma TV, basta revogar o aparelho na mesma tela **Dispositivos*
 ```bash
 npm run tv:assets          # gera ícones e splash em tv/assets/ (precisa de python3 + Pillow)
 
-npm run package:webos      # prod → tv/dist/com.xstreamplayer.tv_<versão>_all.ipk
-npm run package:webos:dev  # dev  → tv/dist/com.xstreamplayer.tv.dev_<versão>_all.ipk
+npm run package:webos      # prod → tv/dist/com.garratv.tv_<versão>_all.ipk
+npm run package:webos:dev  # dev  → tv/dist/com.garratv.tv.dev_<versão>_all.ipk
 
 npm run package:tizen      # prod → tv/dist/<name>.wgt
 npm run package:tizen:dev  # dev  → tv/dist/<name>.wgt
@@ -40,7 +40,7 @@ PNGs. A versão vem do `package.json`.
 
 ### Prod e Dev são dois apps
 
-`:dev` gera um app **separado** — outro id (`com.xstreamplayer.tv.dev`), ícone âmbar em vez de
+`:dev` gera um app **separado** — outro id (`com.garratv.tv.dev`), ícone âmbar em vez de
 vermelho, "(Dev)" no nome. Os dois convivem na mesma TV sem se sobrescrever, e cada um lembra
 o **seu** endereço de servidor. Assim dá para deixar a TV de teste apontando para o servidor
 de dev sem mexer no app de prod (que roda no mesmo servidor de casa).
@@ -79,12 +79,12 @@ ares-device --device tv-sala -i          # testa a conexão (baixa a chave)
 
 ```bash
 # prod
-ares-install --device tv-sala tv/dist/com.xstreamplayer.tv_<versão>_all.ipk
-ares-launch  --device tv-sala com.xstreamplayer.tv
+ares-install --device tv-sala tv/dist/com.garratv.tv_<versão>_all.ipk
+ares-launch  --device tv-sala com.garratv.tv
 
 # dev
-ares-install --device tv-sala tv/dist/com.xstreamplayer.tv.dev_<versão>_all.ipk
-ares-launch  --device tv-sala com.xstreamplayer.tv.dev
+ares-install --device tv-sala tv/dist/com.garratv.tv.dev_<versão>_all.ipk
+ares-launch  --device tv-sala com.garratv.tv.dev
 ```
 
 Ou tudo de uma vez (empacota + instala + abre):
@@ -95,7 +95,7 @@ npm run install:tv:dev      # dev
 ARES_DEVICE=<nome> npm run install:tv   # se o device não for "tv-sala"
 ```
 
-Para inspecionar (DevTools remoto): `ares-inspect --device tv-sala --app com.xstreamplayer.tv`.
+Para inspecionar (DevTools remoto): `ares-inspect --device tv-sala --app com.garratv.tv`.
 
 O Dev Mode da LG expira a cada 1000 horas e precisa ser renovado pelo app na TV — é uma
 limitação da LG, não do projeto.
@@ -110,7 +110,7 @@ de novo.
 ```bash
 # prod
 tizen install -n tv/dist/<arquivo-prod>.wgt -t <device>
-# dev (package id XstrmPlyrD — não conflita com o de prod XstrmPlyr0)
+# dev (package id GarraTVDev — não conflita com o de prod GarraTVApp)
 tizen install -n tv/dist/<arquivo-dev>.wgt -t <device>
 ```
 

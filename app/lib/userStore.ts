@@ -11,14 +11,14 @@ import { dataDir } from './dataDir';
 /**
  * User-owned data: profiles, favorites and watch progress.
  *
- * Deliberately a separate database from xstream-player.sqlite. That one is a
+ * Deliberately a separate database from garratv.sqlite. That one is a
  * disposable catalog cache — deleting it to force a re-sync is a normal thing to
  * do — and user data must not be collateral damage of that habit.
  */
 
-export const PROFILE_COOKIE_NAME = 'xstream_profile';
+export const PROFILE_COOKIE_NAME = 'garratv_profile';
 /** How the TV client states its profile: it has no cookie on its own origin. */
-export const PROFILE_HEADER_NAME = 'X-Xstream-Profile';
+export const PROFILE_HEADER_NAME = 'X-GarraTV-Profile';
 
 const DATA_DIR = dataDir();
 const DB_PATH = path.join(DATA_DIR, 'user-data.sqlite');

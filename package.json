@@ -1,5 +1,5 @@
 {
-  "name": "xstream-player",
+  "name": "garratv",
   "version": "1.21.0",
   "private": true,
   "license": "AGPL-3.0-only",
@@ -17,7 +17,8 @@
     "package:tizen:dev": "node scripts/package-tv.mjs tizen dev",
     "install:tv": "node scripts/install-tv.mjs",
     "install:tv:dev": "node scripts/install-tv.mjs dev",
-    "package:windows": "node scripts/package-windows.mjs"
+    "package:windows": "node scripts/package-windows.mjs",
+    "package:android": "node scripts/package-android.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

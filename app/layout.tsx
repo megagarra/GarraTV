@@ -18,7 +18,7 @@ import {
 } from "@/app/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "XStream Player",
+  title: "GarraTV",
   description: "Premium Web IPTV Player",
 };
 
@@ -51,16 +51,16 @@ const polyfillScript = (() => {
  */
 const errorTrapScript = `
 (function () {
-  window.__XSTREAM_ERRORS = [];
+  window.__GARRATV_ERRORS = [];
 
   function record(entry) {
-    if (window.__XSTREAM_ERRORS.length < 20) window.__XSTREAM_ERRORS.push(entry);
+    if (window.__GARRATV_ERRORS.length < 20) window.__GARRATV_ERRORS.push(entry);
     if (String(window.location.search || '').indexOf('showErrors=1') === -1) return;
     try {
-      var box = document.getElementById('xstream-error-box');
+      var box = document.getElementById('garratv-error-box');
       if (!box) {
         box = document.createElement('div');
-        box.id = 'xstream-error-box';
+        box.id = 'garratv-error-box';
         box.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#450a0a;color:#fecaca;font:14px monospace;padding:12px;white-space:pre-wrap;max-height:60%;overflow:auto';
         (document.body || document.documentElement).appendChild(box);
       }

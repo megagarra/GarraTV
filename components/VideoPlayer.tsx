@@ -5,7 +5,7 @@ import Hls from 'hls.js';
 import { useNavigationOverride } from '@/app/context/NavigationContext';
 import { useProfile } from '@/app/context/ProfileContext';
 import { useT } from '@/app/context/I18nContext';
-import { getDeviceProfile } from '@/app/lib/deviceProfile';
+import { getDeviceProfile, prefersNativeHls } from '@/app/lib/deviceProfile';
 import { getChannelKeyDirection, getMediaKeyAction, isBackKey, isOkKey } from '@/app/lib/platform/keys';
 import { usePlayerScrub } from '@/app/hooks/usePlayerScrub';
 import { getDeviceToken, getServerBaseUrl } from '@/app/lib/apiClient';
@@ -116,8 +116,11 @@ function getPlaybackProfile(): PlaybackProfile {
         isConstrained,
         isTvDevice,
         preload: shouldConserveResources ? 'metadata' : 'auto',
-        minBufferSec: isConstrained ? 12 : isTvDevice ? 10 : 8,
-        fallbackMs: isConstrained ? 18000 : isTvDevice ? 15000 : 12000,
+        // Desktop only needs a short head start: the browser keeps downloading ahead
+        // on its own, and every extra second here is a second of black screen on a
+        // provider that delivers barely faster than real time.
+        minBufferSec: isConstrained ? 12 : isTvDevice ? 10 : 3,
+        fallbackMs: isConstrained ? 18000 : isTvDevice ? 15000 : 5000,
         hls: {
             enableWorker: !shouldConserveResources,
             backBufferLength: isConstrained ? 30 : isTvDevice ? 45 : 90,
@@ -1044,9 +1047,10 @@ export default function VideoPlayer({
         // The VOD relay delivers ffmpeg-generated fMP4, which NATIVE HLS on several
         // devices refuses (DEMUXER_ERROR_COULD_NOT_PARSE). hls.js (MSE) consumes it
         // reliably. (The live relay serves the provider original segments,
-        // which native accepts — so we only force hls.js for VOD.)
+        // which native accepts.) Outside TVs/Apple, hls.js is preferred anyway: desktop
+        // Chromium's native HLS starts live channels much later (see prefersNativeHls).
         const isVodRelay = /\/api\/relay\/vod\//i.test(src);
-        const preferHlsJs = isVodRelay && Hls.isSupported();
+        const preferHlsJs = Hls.isSupported() && (isVodRelay || !prefersNativeHls());
         const useNativeHls = isHLS && !preferHlsJs && (supportsNativeHls || isLegacyWebOs);
         const useHlsJs = isHLS && !useNativeHls && Hls.isSupported();
 
@@ -1184,10 +1188,17 @@ export default function VideoPlayer({
 
         if (useHlsJs) {
             console.log('[VideoPlayer] Initializing HLS.js for:', src, playbackProfile);
+            // Provider live segments are often ~10s and arrive slowly: appending them
+            // while they download puts the first frame up seconds earlier. Not on TVs
+            // (AbortController is only polyfilled there, so a fetch cannot be cancelled)
+            // nor for the packaged TV client, whose auth header lives in xhrSetup, which
+            // the fetch loader that progressive mode switches to never calls.
+            const streamProgressively = isProviderLive && !playbackProfile.isTvDevice && !getServerBaseUrl();
             // Tune CPU/RAM/buffer for TVs and slow connections.
             hls = new Hls({
                 enableWorker: playbackProfile.hls.enableWorker,
                 lowLatencyMode: false,
+                progressive: streamProgressively,
                 // VOD over hls.js starts loading at the resume point instead of
                 // fetching the opening segments and seeking away from them.
                 ...(!isLiveHls && seekTarget > 0 ? { startPosition: seekTarget } : {}),

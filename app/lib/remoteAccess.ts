@@ -14,7 +14,7 @@ const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const KEY_LENGTH = 64;
 
-export const REMOTE_ACCESS_COOKIE_NAME = 'xstream_remote_access';
+export const REMOTE_ACCESS_COOKIE_NAME = 'garratv_remote_access';
 /**
  * Lifetime of an interactive PIN-login session (the owner's browser going through
  * `RemoteAccessGate` / `/api/remote-access`). Kept moderate on purpose: this session is
@@ -53,7 +53,21 @@ function hasErrorCode(error: unknown, code: string) {
     return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
 }
 
-async function readRemoteAccessConfig(): Promise<RemoteAccessConfig> {
+// The root layout and every API guard read this; it only changes through
+// writeRemoteAccessConfig below, which refreshes the memo itself.
+let configMemo: Promise<RemoteAccessConfig> | null = null;
+
+function readRemoteAccessConfig(): Promise<RemoteAccessConfig> {
+    if (!configMemo) {
+        configMemo = readRemoteAccessConfigFromDisk().catch((error: unknown) => {
+            configMemo = null;
+            throw error;
+        });
+    }
+    return configMemo;
+}
+
+async function readRemoteAccessConfigFromDisk(): Promise<RemoteAccessConfig> {
     try {
         const data = await fs.readFile(CONFIG_PATH, 'utf-8');
         return JSON.parse(data);
@@ -68,6 +82,7 @@ async function readRemoteAccessConfig(): Promise<RemoteAccessConfig> {
 async function writeRemoteAccessConfig(config: RemoteAccessConfig) {
     await fs.mkdir(CONFIG_DIR, { recursive: true });
     await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
+    configMemo = Promise.resolve(config);
 }
 
 export async function getRemoteAccessConfigStatus() {

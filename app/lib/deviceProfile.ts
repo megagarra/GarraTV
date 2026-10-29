@@ -175,3 +175,28 @@ function detectTier(): DeviceTier {
     if (score <= -2) return 'low';
     return 'medium';
 }
+
+/**
+ * A TV driven only by a remote: no touch, no mouse, OK arrives as Enter. Smart TV
+ * browsers say so in the user agent; the Android app adds `GarraTVRemote` to its own
+ * on Android TV / Google TV, which otherwise look like any Android WebView.
+ */
+export function isRemoteControlDevice(): boolean {
+    if (typeof window === 'undefined') return false;
+    return /webos|web0s|tizen|smart-tv|smarttv|hbbtv|netcast|garratvremote/.test(navigator.userAgent.toLowerCase());
+}
+
+/**
+ * Whether HLS should go to the browser's own player rather than hls.js. TVs and
+ * Apple WebKit play it natively and well. Desktop Chromium (the Windows app's
+ * Electron included) now also answers canPlayType('…mpegurl'), but its native
+ * player buffers far longer before the first frame of a live channel than a
+ * tuned hls.js, so wherever MSE exists outside those, hls.js wins.
+ */
+export function prefersNativeHls(): boolean {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent.toLowerCase();
+    if (/webos|web0s|tizen|smart-tv|smarttv|hbbtv|netcast/.test(ua)) return true;
+    if (/iphone|ipad|ipod/.test(ua)) return true;
+    return /safari/.test(ua) && !/chrome|chromium|android|edg/.test(ua);
+}

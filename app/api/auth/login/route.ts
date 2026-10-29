@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { enforceApiAccess } from '@/app/lib/apiAuth';
-import { publicUserInfo, readCredentials } from '@/app/lib/liveShare';
+import { forgetCredentials, publicUserInfo, readCredentials } from '@/app/lib/liveShare';
 import {
     ACCOUNT_SESSION_SECONDS,
     accountSessionCookie,
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
             user: data.user_info,
             server: data.server_info,
         }, null, 2));
+        forgetCredentials();
 
         // A new account must not inherit the sessions opened for the previous one.
         if (replacesAccount) {

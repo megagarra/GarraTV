@@ -107,6 +107,8 @@ const SearchResultCard = memo(function SearchResultCard({ item }: { item: Catalo
             ratio={item.type === 'live' ? 'square' : 'poster'}
             rating={item.rating}
             badge={{ text: t(BADGE_LABEL_KEY[item.type]) }}
+            favoriteType={item.type}
+            favoriteId={item.id}
         />
     );
 });

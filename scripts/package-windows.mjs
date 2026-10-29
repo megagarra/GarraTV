@@ -69,6 +69,8 @@ function stageServer() {
     fs.copyFileSync(path.join(root, 'tv', 'assets', 'icon.png'), path.join(desktop, 'icon.png'));
     fs.copyFileSync(path.join(root, 'LICENSE'), path.join(desktop, 'LICENSE'));
 
+    pruneServer();
+
     const native = path.join(serverDir, 'node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node');
     if (!fs.existsSync(native)) {
         throw new Error('Standalone build is missing better-sqlite3. Refusing to package a player that cannot open its database.');
@@ -77,6 +79,40 @@ function stageServer() {
         throw new Error('Standalone build is missing server.js.');
     }
 }
+
+/**
+ * Packages Next's standalone trace pulls in but the running player never loads:
+ * sharp/@img back next/image's optimizer (the app renders plain <img>), and
+ * typescript only appears as a config key in server.js. ~29 MB.
+ */
+const UNUSED_SERVER_MODULES = ['sharp', '@img', 'typescript'];
+
+function pruneServer() {
+    for (const name of UNUSED_SERVER_MODULES) {
+        fs.rmSync(path.join(serverDir, 'node_modules', name), { recursive: true, force: true });
+    }
+    fs.writeFileSync(path.join(serverDir, 'compile-cache.cjs'), COMPILE_CACHE_PRELOAD);
+}
+
+/**
+ * Loaded with --require by desktop/main.cjs. Keeps V8's compiled server code in
+ * a cache folder so launches after the first skip most parse/compile work. Node
+ * writes that cache at a clean exit, but the desktop app ends the server with a
+ * hard kill, so it is flushed once the boot code has been compiled.
+ */
+const COMPILE_CACHE_PRELOAD = `const mod = require('module');
+const dir = process.env.GARRATV_COMPILE_CACHE;
+if (dir && typeof mod.enableCompileCache === 'function') {
+    mod.enableCompileCache(dir);
+    setTimeout(() => {
+        try {
+            if (typeof mod.flushCompileCache === 'function') mod.flushCompileCache();
+        } catch {
+            /* a cold start next time is the only cost */
+        }
+    }, 15000).unref();
+}
+`;
 
 function syncDesktopPackage() {
     const app = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -99,8 +135,8 @@ async function packageApp(sdk) {
         win: targets,
         x64: true,
         config: {
-            appId: 'com.xstreamplayer.desktop',
-            productName: 'Xstream Player',
+            appId: 'com.garratv.desktop',
+            productName: 'GarraTV',
             copyright: `Copyright © ${new Date().getFullYear()} ${JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).author}`,
             directories: {
                 app: 'desktop',
@@ -121,6 +157,16 @@ async function packageApp(sdk) {
                 fs.cpSync(path.join(serverDir, 'node_modules'), dest, { recursive: true });
             },
             asar: true,
+            // The Electron shell (main.cjs) uses only Electron's own modules; the
+            // player server ships its node_modules under resources/server. Left to
+            // itself, electron-builder resolves the root project's dependency tree
+            // (desktop/package.json shares its name) and packs all of it — next,
+            // @next/swc, sharp… ~357 MB nobody loads. `false` = handled externally.
+            beforeBuild: async () => false,
+            // Chromium ships ~55 UI locales (~49 MB); the app speaks pt-BR and en.
+            electronLanguages: ['pt-BR', 'en-US'],
+            // Smaller download; only the build gets slower.
+            compression: 'maximum',
             win: {
                 icon: 'desktop/icon.png',
                 target: targets.map((target) => ({ target, arch: ['x64'] })),
@@ -129,20 +175,20 @@ async function packageApp(sdk) {
                 oneClick: true,
                 perMachine: false,
                 allowElevation: false,
-                shortcutName: 'Xstream Player',
-                uninstallDisplayName: 'Xstream Player',
-                artifactName: 'XstreamPlayer-Setup-${version}.${ext}',
+                shortcutName: 'GarraTV',
+                uninstallDisplayName: 'GarraTV',
+                artifactName: 'GarraTV-Setup-${version}.${ext}',
                 createDesktopShortcut: true,
                 createStartMenuShortcut: true,
             },
             appx: {
-                identityName: process.env.WINDOWS_STORE_IDENTITY || 'XstreamPlayer',
-                publisher: process.env.WINDOWS_STORE_PUBLISHER || 'CN=XstreamPlayer',
+                identityName: process.env.WINDOWS_STORE_IDENTITY || 'GarraTV',
+                publisher: process.env.WINDOWS_STORE_PUBLISHER || 'CN=GarraTV',
                 publisherDisplayName: process.env.WINDOWS_STORE_PUBLISHER_DISPLAY || 'Janderson Lemos',
-                applicationId: 'XstreamPlayer',
+                applicationId: 'GarraTV',
                 languages: ['pt-BR', 'en-US'],
                 showNameOnTiles: true,
-                artifactName: 'XstreamPlayer-${version}.${ext}',
+                artifactName: 'GarraTV-${version}.${ext}',
             },
         },
     });
@@ -157,7 +203,7 @@ async function packageApp(sdk) {
 
 const sdk = windowsSdkRoot();
 console.log(`[package:windows] Windows SDK: ${sdk || 'not installed'}`);
-if (process.env.XSTREAM_SKIP_NEXT_BUILD === '1' && fs.existsSync(path.join(root, '.next', 'standalone', 'server.js'))) {
+if (process.env.GARRATV_SKIP_NEXT_BUILD === '1' && fs.existsSync(path.join(root, '.next', 'standalone', 'server.js'))) {
     console.log('[package:windows] reusing the Next.js build from this session');
 } else {
     console.log('[package:windows] building the Next.js app');

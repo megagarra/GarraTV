@@ -50,7 +50,7 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = 'xstream_auth';
+const AUTH_STORAGE_KEY = 'garratv_auth';
 
 function storeAuth(data: StoredAuthData | null) {
     try {
@@ -184,7 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setServer(serverInfo);
             setIsAuthenticated(true);
 
-            router.push(typeof redirectTo === 'string' ? redirectTo : '/streamflix/home');
+            router.push(typeof redirectTo === 'string' ? redirectTo : '/garratv/home');
 
         } catch (error) {
             console.error(error);
@@ -215,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setServer(null);
         setIsAuthenticated(false);
         // onClick={logout} passes the click event; only an explicit path may override the default.
-        router.push(typeof redirectTo === 'string' ? redirectTo : '/streamflix');
+        router.push(typeof redirectTo === 'string' ? redirectTo : '/garratv');
     };
 
     return (

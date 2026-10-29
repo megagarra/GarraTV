@@ -6,7 +6,7 @@ import { listDevices, revokeDevice, updateDevice } from '@/app/lib/deviceStore';
 import { listProfiles } from '@/app/lib/userStore';
 
 /** Set by /api/devices/session when the tab belongs to a paired TV. */
-const DEVICE_SESSION_COOKIE_NAME = 'xstream_device';
+const DEVICE_SESSION_COOKIE_NAME = 'garratv_device';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

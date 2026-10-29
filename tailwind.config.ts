@@ -12,6 +12,15 @@ const config: Config = {
     ],
     theme: {
         extend: {
+            screens: {
+                // TVs a WebView sees as 960×540 (Google TV, Android TV) and phones on
+                // their side: the 720px-tall layouts don't fit and need a compact variant.
+                short: { raw: "(max-height: 640px)" },
+                // Phones on their side (360–430 tall): a side rail instead of the header,
+                // chips instead of the category column. Declared after `short`, so it wins.
+                // Only phones get here, and their WebViews are modern: CSS grid is fine.
+                phone: { raw: "(max-height: 430px)" },
+            },
             colors: {
                 bg: "var(--bg)",
                 surface: {

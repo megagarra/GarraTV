@@ -60,14 +60,14 @@ async function focusCheck(tv, results, flow, label, keys) {
 async function flowVisitor(tv, results) {
     const flow = '1. Visitor / free channels';
     await tv.goto(`${APP_URL}/`, { settleMs: 1500 });
-    const ok = await tv.waitFor(`location.pathname === '/streamflix/free' && document.querySelectorAll('[data-focusable="true"]').length > 5`, 30000);
+    const ok = await tv.waitFor(`location.pathname === '/garratv/free' && document.querySelectorAll('[data-focusable="true"]').length > 5`, 30000);
     verdict(results, flow, 'redirects to free channels', ok ? 'pass' : 'fail', (await tv.health()).url);
     await sleep(1500);
     await screenCheck(tv, results, flow, 'free');
     await focusCheck(tv, results, flow, 'free', ['down', 'down', 'right', 'up', 'left']);
 
     // The first channel autoplays; the matrix pins a mock-backed one there (server.mjs).
-    await tv.goto(`${APP_URL}/streamflix/free`, { settleMs: 500 });
+    await tv.goto(`${APP_URL}/garratv/free`, { settleMs: 500 });
     const playlist = await tv.waitForRequest(/\/api\/relay\?free=br-matrix-test/, 20000);
     const segments = playlist && await tv.waitForRequest(/\/api\/relay\?src=/, 20000);
     const playing = await tv.waitFor(`(function(){var v=document.querySelector('video');return v&&v.currentTime>0.5;})()`, decodesH264(tv.engine) ? 20000 : 3000);
@@ -80,7 +80,7 @@ async function flowVisitor(tv, results) {
 
 async function flowSecurity(tv, results) {
     const flow = '2. Visitor security';
-    await tv.goto(`${APP_URL}/streamflix/free`, { settleMs: 500 });
+    await tv.goto(`${APP_URL}/garratv/free`, { settleMs: 500 });
     const save = await tv.pageFetch('/api/free-channels', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'saveConfig', contactLabel: 'attacker@example.com', contactUrl: 'mailto:attacker@example.com' }),
@@ -117,13 +117,13 @@ async function typeInto(tv, selector, text) {
 }
 
 async function login(tv) {
-    await tv.goto(`${APP_URL}/streamflix`, { settleMs: 1500 });
+    await tv.goto(`${APP_URL}/garratv`, { settleMs: 1500 });
     await tv.waitFor(`document.querySelectorAll('form input').length >= 3`, 20000);
     await typeInto(tv, 'form input[type="url"]', MOCK_HOST);
     await typeInto(tv, 'form input[autocomplete="username"]', MOCK_USER);
     await typeInto(tv, 'form input[autocomplete="current-password"]', MOCK_PASS);
     await tv.eval(`document.querySelector('form button[type="submit"]').click()`);
-    return tv.waitFor(`location.pathname === '/streamflix/home'`, 30000);
+    return tv.waitFor(`location.pathname === '/garratv/home'`, 30000);
 }
 
 async function waitForSync(tv) {
@@ -149,11 +149,11 @@ async function flowLogin(tv, results) {
     if (!ok) return false;
     const synced = await waitForSync(tv);
     verdict(results, flow, 'catalog syncs from the provider', synced ? 'pass' : 'fail', synced ? 'mock catalog in SQLite' : 'no streams after 60s');
-    const storage = await tv.eval(`JSON.stringify({ cookie: document.cookie, auth: localStorage.getItem('xstream_auth') || '' })`);
+    const storage = await tv.eval(`JSON.stringify({ cookie: document.cookie, auth: localStorage.getItem('garratv_auth') || '' })`);
     const leaks = storage.indexOf(MOCK_PASS) !== -1 || /password/i.test(storage);
     verdict(results, flow, 'password not in localStorage or readable cookies', leaks ? 'fail' : 'pass', leaks ? 'password found' : 'clean');
     const cookies = await tv.cdp.send('Network.getCookies', { urls: [APP_URL] }).catch(() => ({ cookies: [] }));
-    const session = (cookies.cookies || []).find((c) => c.name === 'xstream_session');
+    const session = (cookies.cookies || []).find((c) => c.name === 'garratv_session');
     verdict(results, flow, 'session cookie is httpOnly', session && session.httpOnly ? 'pass' : session ? 'fail' : 'warn', session ? `httpOnly=${session.httpOnly}` : 'cookie not visible to CDP');
     return true;
 }
@@ -161,12 +161,12 @@ async function flowLogin(tv, results) {
 async function flowCatalog(tv, results) {
     const flow = '4. Catalog';
     const screens = [
-        ['home', '/streamflix/home', ['down', 'right', 'right', 'down', 'left']],
-        ['live', '/streamflix/live', ['down', 'down', 'right', 'up']],
-        ['movies', '/streamflix/movies', ['down', 'right', 'right', 'down']],
-        ['series', '/streamflix/series', ['down', 'right', 'down']],
-        ['title', '/streamflix/title/movie/200', ['down', 'right', 'up']],
-        ['favorites', '/streamflix/favorites', ['down', 'right']],
+        ['home', '/garratv/home', ['down', 'right', 'right', 'down', 'left']],
+        ['live', '/garratv/live', ['down', 'down', 'right', 'up']],
+        ['movies', '/garratv/movies', ['down', 'right', 'right', 'down']],
+        ['series', '/garratv/series', ['down', 'right', 'down']],
+        ['title', '/garratv/title/movie/200', ['down', 'right', 'up']],
+        ['favorites', '/garratv/favorites', ['down', 'right']],
         ['dashboard', '/dashboard', ['down', 'right', 'down']],
     ];
     for (const [label, url, keys] of screens) {
@@ -178,9 +178,9 @@ async function flowCatalog(tv, results) {
             verdict(results, flow, 'live: EPG shown (via proxy, no client credentials)', epg ? 'pass' : 'fail', epg ? 'guide rendered' : 'no programme text');
         }
     }
-    await tv.goto(`${APP_URL}/streamflix/title/movie/200`, { settleMs: 2500 });
+    await tv.goto(`${APP_URL}/garratv/title/movie/200`, { settleMs: 2500 });
     const before = await tv.eval('location.pathname');
-    await tv.goto(`${APP_URL}/streamflix/movies`, { settleMs: 1500 });
+    await tv.goto(`${APP_URL}/garratv/movies`, { settleMs: 1500 });
     await tv.press('back', { delayMs: 2500 });
     const after = await tv.eval('location.pathname');
     verdict(results, flow, `remote Back key (${tv.engine.platform})`, after === before ? 'pass' : 'fail', `after Back: ${after} (expected ${before})`);
@@ -253,13 +253,13 @@ async function flowPairing(tv, results) {
 
 async function flowSignOut(tv, results) {
     const flow = '8. Sign out';
-    await tv.goto(`${APP_URL}/streamflix/home`, { settleMs: 1500 });
+    await tv.goto(`${APP_URL}/garratv/home`, { settleMs: 1500 });
     const out = await tv.pageFetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     verdict(results, flow, 'sign out succeeds', out.status === 200 ? 'pass' : 'fail', `HTTP ${out.status}`);
     const after = await tv.pageFetch('/api/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: '' }) });
     verdict(results, flow, 'old session no longer opens the account', after.status === 401 ? 'pass' : 'fail', `HTTP ${after.status}`);
     await tv.goto(`${APP_URL}/`, { settleMs: 2500 });
-    const visitor = await tv.waitFor(`location.pathname === '/streamflix/free'`, 15000);
+    const visitor = await tv.waitFor(`location.pathname === '/garratv/free'`, 15000);
     const shot = await tv.screenshot('signed-out');
     verdict(results, flow, 'back to visitor mode', visitor ? 'pass' : 'fail', await tv.eval('location.pathname'), shot);
 }

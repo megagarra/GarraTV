@@ -55,7 +55,7 @@ export const WatchProgressProvider = ({ children }: { children: ReactNode }) => 
     const [progressMap, setProgressMap] = useState<Record<string, WatchProgress>>(() => {
         if (typeof window !== 'undefined') {
             try {
-                const saved = localStorage.getItem('xstream_watch_progress');
+                const saved = localStorage.getItem('garratv_watch_progress');
                 return saved ? JSON.parse(saved) : {};
             } catch {
                 return {};
@@ -75,7 +75,7 @@ export const WatchProgressProvider = ({ children }: { children: ReactNode }) => 
                 if (res.ok) {
                     const data = await res.json();
                     setProgressMap(data);
-                    localStorage.setItem('xstream_watch_progress', JSON.stringify(data));
+                    localStorage.setItem('garratv_watch_progress', JSON.stringify(data));
                 }
             } catch (e) {
                 console.error("Failed to fetch watch progress from backend", e);
@@ -112,7 +112,7 @@ export const WatchProgressProvider = ({ children }: { children: ReactNode }) => 
     // Save summary to Backend occasionally (bulk sync from localStorage if needed)
     useEffect(() => {
         if (isLoaded) {
-            localStorage.setItem('xstream_watch_progress', JSON.stringify(progressMap));
+            localStorage.setItem('garratv_watch_progress', JSON.stringify(progressMap));
         }
     }, [progressMap, isLoaded]);
 

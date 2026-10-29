@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { enforceAccountAccess, enforceApiAccess, getRequestDevice } from '@/app/lib/apiAuth';
-import { publicUserInfo } from '@/app/lib/liveShare';
+import { forgetCredentials, publicUserInfo } from '@/app/lib/liveShare';
 import { ACCOUNT_SESSION_COOKIE_NAME, hasAccountSession, rotateSessionSecret } from '@/app/lib/accountSession';
 import { dataDir } from '@/app/lib/dataDir';
 
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
 
     try {
         await fs.writeFile(CONFIG_PATH, JSON.stringify({}, null, 2));
+        forgetCredentials();
         await rotateSessionSecret();
         const response = NextResponse.json({ success: true });
         response.cookies.set({ name: ACCOUNT_SESSION_COOKIE_NAME, value: '', path: '/', maxAge: 0 });

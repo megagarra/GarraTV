@@ -15,6 +15,41 @@ export const dynamic = 'force-dynamic';
 
 const PASSTHROUGH_HEADERS = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag'];
 
+/**
+ * Where a title's panel URL last redirected to. Opening a video takes several
+ * range requests in a row (header, the index often stored at the END of an MP4,
+ * then the first frames), and the panel answers each with a slow 302 to a
+ * tokenized CDN URL — and may count each as a new connection. Going straight to
+ * that URL while it is fresh skips the panel for all but the first.
+ */
+const REDIRECT_TTL_MS = 5 * 60 * 1000;
+const MAX_REDIRECTS = 200;
+const redirects = new Map<string, { url: string; at: number }>();
+
+async function fetchUpstream(upstreamUrl: string, init: RequestInit): Promise<Response> {
+    const known = redirects.get(upstreamUrl);
+    if (known && Date.now() - known.at < REDIRECT_TTL_MS) {
+        const direct = await fetch(known.url, init).catch(() => null);
+        if (direct && (direct.ok || direct.status === 416)) return direct;
+        // The player gave up on this range (it does that constantly while seeking):
+        // not a sign the cached URL went stale.
+        if (init.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        // Token expired or the CDN moved: ask the panel again.
+        await direct?.body?.cancel().catch(() => undefined);
+        redirects.delete(upstreamUrl);
+    }
+    const upstream = await fetch(upstreamUrl, init);
+    if (upstream.ok && upstream.url && upstream.url !== upstreamUrl) {
+        redirects.delete(upstreamUrl);
+        redirects.set(upstreamUrl, { url: upstream.url, at: Date.now() });
+        if (redirects.size > MAX_REDIRECTS) {
+            const oldest = redirects.keys().next().value;
+            if (oldest !== undefined) redirects.delete(oldest);
+        }
+    }
+    return upstream;
+}
+
 async function proxy(request: Request, params: Promise<{ type: string; file: string }>, method: 'GET' | 'HEAD') {
     const accessResponse = await enforceAccountAccess(request);
     if (accessResponse) return accessResponse;
@@ -36,7 +71,7 @@ async function proxy(request: Request, params: Promise<{ type: string; file: str
 
     let upstream: Response;
     try {
-        upstream = await fetch(upstreamUrl, { method, headers, redirect: 'follow', signal: request.signal });
+        upstream = await fetchUpstream(upstreamUrl, { method, headers, redirect: 'follow', signal: request.signal });
     } catch (error) {
         // Never log the URL: it carries the password.
         if (!request.signal.aborted) {

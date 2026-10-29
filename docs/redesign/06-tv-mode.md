@@ -141,7 +141,7 @@ cada uma um `<button data-focusable="true">` com nome do arquivo, idioma e downl
 ## 6. `app/page.tsx` — Entrada
 
 Tela de login. Preservar `handleSubmit` → `login()` do `AuthContext` e o tratamento de erro.
-Layout: coluna centrada `max-w-sm`, marca "Xstream" acima (o "X" em `text-brand`),
+Layout: coluna centrada `max-w-sm`, marca "GarraTV" acima (o "X" em `text-brand`),
 três `Field` (URL do servidor, usuário, senha) com `inputClassName` e `data-focusable`,
 `Button primary size="lg" fullWidth` **Entrar** com `loading` durante a requisição.
 Fundo `bg-bg` sólido, sem gradiente. Erro em `text-brand text-sm` acima do botão.

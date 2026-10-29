@@ -18,6 +18,7 @@ type LibraryAction =
     | 'getCategoryCounts'
     | 'listStreams'
     | 'listCatalog'
+    | 'pageCatalog'
     | 'countDatedStreams'
     | 'getRecentStreams'
     | 'getStreamsByIds'
@@ -43,7 +44,8 @@ interface LibraryRequestBody {
     query?: string;
     limit?: number;
     offset?: number;
-    order?: 'name' | 'rating';
+    order?: 'name' | 'added' | 'rating';
+    recentOnly?: boolean;
     key?: string;
     dateKey?: string;
     currentDateKey?: string;
@@ -149,6 +151,20 @@ export async function POST(request: Request) {
                 }
                 const categoryId = body.categoryId ? String(body.categoryId) : undefined;
                 return jsonData(library.listCatalog(contentType, categoryId));
+            }
+            case 'pageCatalog': {
+                const contentType = asContentType(body.type);
+                if (!contentType) {
+                    return NextResponse.json({ error: 'Tipo de conteúdo inválido' }, { status: 400 });
+                }
+                return jsonData(library.pageCatalog({
+                    type: contentType,
+                    categoryId: body.categoryId ? String(body.categoryId) : undefined,
+                    recentOnly: body.recentOnly === true,
+                    order: body.order === 'rating' || body.order === 'added' ? body.order : 'name',
+                    limit: body.limit ?? 60,
+                    offset: body.offset ?? 0,
+                }));
             }
             case 'countDatedStreams': {
                 const contentType = asContentType(body.type);

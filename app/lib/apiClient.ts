@@ -10,21 +10,21 @@
  * authentication travels in an `Authorization: Bearer` header.
  */
 
-const SERVER_URL_KEY = 'xstream_server_url';
-const DEVICE_TOKEN_KEY = 'xstream_device_token';
-/** Mirrors the `xstream_profile` cookie for origins where cookies are unavailable. */
-const PROFILE_KEY = 'xstream_profile';
+const SERVER_URL_KEY = 'garratv_server_url';
+const DEVICE_TOKEN_KEY = 'garratv_device_token';
+/** Mirrors the `garratv_profile` cookie for origins where cookies are unavailable. */
+const PROFILE_KEY = 'garratv_profile';
 
 /** Fired when the stored device token was rejected as invalid/revoked and cleared. */
-export const UNAUTHORIZED_EVENT = 'xstream:unauthorized';
+export const UNAUTHORIZED_EVENT = 'garratv:unauthorized';
 /**
  * Fired on a 401 that is NOT the device token's fault (an expired remote-access cookie).
  * The token is kept; a listener can silently re-run `/api/devices/session?token=…` to
  * mint a fresh session cookie instead of dropping the TV back to the pairing screen.
  */
-export const SESSION_EXPIRED_EVENT = 'xstream:session-expired';
+export const SESSION_EXPIRED_EVENT = 'garratv:session-expired';
 /** Server marker (see app/lib/apiAuth.ts) that a 401 means the device token itself is bad. */
-const DEVICE_AUTH_HEADER = 'X-Xstream-Device-Auth';
+const DEVICE_AUTH_HEADER = 'X-GarraTV-Device-Auth';
 const DEVICE_AUTH_INVALID = 'invalid';
 
 function readStored(key: string): string | null {
@@ -94,6 +94,28 @@ function getActiveProfileId(): string | null {
     return readStored(PROFILE_KEY);
 }
 
+/**
+ * Installed by the Android app (android/web/AndroidBoot.tsx), which has no server:
+ * it answers `/api/*` in-process, or returns null for the streaming paths its
+ * native shell serves itself.
+ */
+type LocalApiHandler = (path: string, init: RequestInit) => Promise<Response> | null;
+
+interface AndroidAppWindow {
+    GarraTVApp?: unknown;
+    __garratvLocalApi?: LocalApiHandler;
+}
+
+/** True inside the Android app, where features that need a server are unavailable. */
+export function isAndroidApp(): boolean {
+    return typeof window !== 'undefined' && Boolean((window as unknown as AndroidAppWindow).GarraTVApp);
+}
+
+function localApiHandler(): LocalApiHandler | undefined {
+    if (typeof window === 'undefined') return undefined;
+    return (window as unknown as AndroidAppWindow).__garratvLocalApi;
+}
+
 /** Absolute URL for an API path — for `src` attributes that never go through fetch. */
 export function apiUrl(path: string): string {
     const base = getServerBaseUrl();
@@ -149,8 +171,8 @@ export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
     }
 
     const profileId = getActiveProfileId();
-    if (profileId && !hasHeader(headers, 'X-Xstream-Profile')) {
-        headers['X-Xstream-Profile'] = profileId;
+    if (profileId && !hasHeader(headers, 'X-GarraTV-Profile')) {
+        headers['X-GarraTV-Profile'] = profileId;
     }
 
     const request: RequestInit = { ...init, headers };
@@ -163,7 +185,8 @@ export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
         request.credentials = base ? 'omit' : 'same-origin';
     }
 
-    return fetch(apiUrl(path), request).then((response) => {
+    const pending = localApiHandler()?.(path, request) ?? fetch(apiUrl(path), request);
+    return pending.then((response) => {
         if (response.status === 401 && token && typeof window !== 'undefined') {
             // A 401 only means "re-pair" when the server marks the device token itself
             // as bad. A bare 401 is the remote-access cookie expiring — recoverable by

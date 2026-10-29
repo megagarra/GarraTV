@@ -1,6 +1,6 @@
 # Contributor License Agreement
 
-Xstream Player is released under the [GNU Affero General Public License v3.0](LICENSE).
+GarraTV is released under the [GNU Affero General Public License v3.0](LICENSE).
 To keep the project's licensing flexible — including the possibility of offering it
 under different terms in the future — every contribution must be covered by this
 agreement.
@@ -10,7 +10,7 @@ agree to the terms below.
 
 ## 1. Definitions
 
-- **"Project"** means Xstream Player and its associated repository.
+- **"Project"** means GarraTV and its associated repository.
 - **"Owner"** means Janderson Lemos, the copyright holder and maintainer of the Project.
 - **"Contribution"** means any original work of authorship — code, documentation,
   configuration, or other material — that you intentionally submit to the Project.

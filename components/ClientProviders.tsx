@@ -11,6 +11,7 @@ import { TMDbProvider } from '../app/context/TMDbContext';
 import { SubtitleProvider } from '../app/context/SubtitleContext';
 import { ProfileProvider, useProfile } from '../app/context/ProfileContext';
 import ProfileSelector from '@/components/ProfileSelector';
+import RemoteFavorites from '@/components/RemoteFavorites';
 
 /**
  * Favorites and watch progress are loaded once on mount from the profile the
@@ -33,6 +34,7 @@ function ProfileScopedProviders({ children }: { children: React.ReactNode }) {
                     <SubtitleProvider>
                         <TvNavigationProvider>
                             {children}
+                            <RemoteFavorites />
                         </TvNavigationProvider>
                     </SubtitleProvider>
                 </TMDbProvider>

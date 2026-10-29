@@ -27,7 +27,7 @@ export interface FreeCountry {
     name: string;
 }
 
-const COUNTRY_STORAGE_KEY = 'xstream_free_country';
+const COUNTRY_STORAGE_KEY = 'garratv_free_country';
 
 /** A failed owner action; `status` 401 means this browser is not signed in to the account. */
 export class FreeTierRequestError extends Error {

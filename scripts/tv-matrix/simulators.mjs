@@ -65,7 +65,7 @@ function stageApp() {
     fs.copyFileSync(path.join(ROOT, 'tv', 'assets', 'icon-dev.png'), path.join(APP_DIR, 'icon.png'));
     fs.copyFileSync(path.join(ROOT, 'tv', 'assets', 'splash.png'), path.join(APP_DIR, 'splash.png'));
     const appinfo = JSON.parse(fs.readFileSync(path.join(ROOT, 'tv', 'webos', 'appinfo.json'), 'utf-8'));
-    Object.assign(appinfo, { id: 'com.xstreamplayer.tv.dev', title: 'XStream Player (Dev)', version });
+    Object.assign(appinfo, { id: 'com.garratv.tv.dev', title: 'GarraTV (Dev)', version });
     fs.writeFileSync(path.join(APP_DIR, 'appinfo.json'), JSON.stringify(appinfo, null, 4));
 }
 

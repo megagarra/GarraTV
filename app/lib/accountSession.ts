@@ -18,7 +18,7 @@ import { dataDir } from './dataDir';
 const DATA_DIR = dataDir();
 const SECRET_PATH = path.join(DATA_DIR, 'session-secret.json');
 
-export const ACCOUNT_SESSION_COOKIE_NAME = 'xstream_session';
+export const ACCOUNT_SESSION_COOKIE_NAME = 'garratv_session';
 export const ACCOUNT_SESSION_SECONDS = 90 * 24 * 60 * 60;
 export const ACCOUNT_DEVICE_SESSION_SECONDS = 365 * 24 * 60 * 60;
 

@@ -37,7 +37,7 @@ export const LOCALES: LocaleEntry[] = [
     { code: 'en', label: 'English', messages: en as Messages },
 ];
 
-export const LOCALE_COOKIE = 'xstream_locale';
+export const LOCALE_COOKIE = 'garratv_locale';
 
 const FALLBACK_MESSAGES = ptBR;
 

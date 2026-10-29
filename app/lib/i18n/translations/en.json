@@ -454,7 +454,10 @@
         "pinRequired": "Remote access PIN required",
         "pinNotConfigured": "Remote access PIN not configured"
     },
-    "streamflix": {
+    "garratv": {
+        "favoriteAdded": "Added to favorites",
+        "favoriteRemoved": "Removed from favorites",
+        "navigation": "Navigation",
         "loginTitle": "Sign in with Xtream Codes",
         "serverUrl": "Server URL",
         "serverPlaceholder": "http://server.com:8080",
@@ -543,14 +546,8 @@
         "noAccountYet": "Don't have an Xtream Codes account yet?",
         "watchFree": "Watch free channels",
         "upgradeKicker": "Full access",
-        "upgradeTitle": "Unlock everything",
-        "upgradePerkLive": "Every live channel, with programme guide",
-        "upgradePerkMovies": "The full movie catalog, including new releases",
-        "upgradePerkSeries": "Complete series, season by season, with continue watching",
         "upgradeContact": "To get your Xtream Codes account, contact: {contact}",
         "upgradeContactGeneric": "To get your Xtream Codes account, contact the service administrator.",
-        "upgradeCta": "Contact us",
-        "upgradeHaveAccess": "I already have access",
         "freeGroups": {
             "General": "General",
             "Entertainment": "Entertainment",
@@ -595,6 +592,19 @@
         "spotlightUntil": "until {time}",
         "spotlightTrending": "Trending today",
         "spotlightNew": "Just added",
-        "spotlightToday": "Today at {time}"
+        "spotlightToday": "Today at {time}",
+        "loadingTitle": "Getting your catalog ready",
+        "loadingSubtitle": "Downloading channels, movies and series. The app opens as soon as everything is in.",
+        "loadingChecking": "Checking your catalog…",
+        "loadingWaiting": "Queued",
+        "loadingDownloading": "Downloading list from the provider…",
+        "loadingSaving": "Saving {done} of {total}",
+        "loadingDone": "Ready · {total}",
+        "loadingFailed": "Failed",
+        "loadingOverall": "Overall progress",
+        "loadingErrorTitle": "Couldn't load the catalog",
+        "loadingRetry": "Try again",
+        "loadingOtherAccount": "Use another account",
+        "loadingCategories": "Downloading category {done} of {total}"
     }
 }

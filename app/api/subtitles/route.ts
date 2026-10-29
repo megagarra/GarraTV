@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         const headers: Record<string, string> = {
             'Api-Key': apiKey,
             'Content-Type': 'application/json',
-            'User-Agent': 'XStreamPlayer v1.0',
+            'User-Agent': 'GarraTV v1.0',
         };
 
         if (action === 'search') {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 
             const response = await fetchWithRetry(url, {
                 method: 'GET',
-                headers: { 'Api-Key': apiKey, 'User-Agent': 'XStreamPlayer v1.0' },
+                headers: { 'Api-Key': apiKey, 'User-Agent': 'GarraTV v1.0' },
             });
 
             if (!response.ok) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useData } from '@/app/context/DataContext';
+import { useData, useSyncStatus } from '@/app/context/DataContext';
 import { useT } from '@/app/context/I18nContext';
 import Button from '@/components/ui/Button';
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -8,7 +8,8 @@ import { RefreshCw } from 'lucide-react';
 
 /** Catalog sync — moved out of the nav rail (spec 02 §5.2). */
 export default function CatalogSection() {
-    const { syncData, isSyncing, syncProgress, lastSync } = useData();
+    const { syncData, isSyncing, lastSync } = useData();
+    const { syncProgress } = useSyncStatus();
     const t = useT();
 
     return (

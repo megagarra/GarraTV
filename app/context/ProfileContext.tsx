@@ -29,12 +29,12 @@ interface ProfileState {
 
 const ProfileContext = createContext<ProfileState | undefined>(undefined);
 
-export const PROFILE_COOKIE_NAME = 'xstream_profile';
+export const PROFILE_COOKIE_NAME = 'garratv_profile';
 
 // The API routes read the active profile from this cookie, so every request
 // already carries it — no client code needs to pass a profile id around.
 // The localStorage mirror exists for origins where cookies do not survive
-// (the packaged TV client), where apiFetch sends it as X-Xstream-Profile.
+// (the packaged TV client), where apiFetch sends it as X-GarraTV-Profile.
 function writeProfileCookie(id: string) {
     const oneYear = 60 * 60 * 24 * 365;
     document.cookie = `${PROFILE_COOKIE_NAME}=${id}; path=/; max-age=${oneYear}; SameSite=Lax`;
@@ -50,6 +50,26 @@ function readProfileCookie(): string | null {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
+const PROFILES_CACHE_KEY = 'garratv_profiles_cache';
+
+function readCachedProfiles(): Profile[] | null {
+    try {
+        const raw = localStorage.getItem(PROFILES_CACHE_KEY);
+        const parsed = raw ? JSON.parse(raw) as unknown : null;
+        return Array.isArray(parsed) && parsed.length > 0 ? parsed as Profile[] : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeCachedProfiles(data: Profile[]) {
+    try {
+        localStorage.setItem(PROFILES_CACHE_KEY, JSON.stringify(data));
+    } catch {
+        /* storage unavailable: the next start just waits for the request */
+    }
+}
+
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -57,20 +77,33 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
+        const apply = (data: Profile[]) => {
+            setProfiles(data);
+
+            const cookieId = readProfileCookie();
+            const picked = data.find(p => p.id === cookieId) ?? null;
+
+            // Without a cookie the server falls back to the first profile,
+            // so the client has to fall back to the same one to stay in sync.
+            setActiveId((picked ?? data[0])?.id ?? null);
+            setHasPicked(picked !== null);
+        };
+
+        // The whole app waits on this provider, so the last known list renders
+        // right away and the request below only revalidates it.
+        const cached = readCachedProfiles();
+        if (cached) {
+            apply(cached);
+            setIsLoaded(true);
+        }
+
         const load = async () => {
             try {
                 const res = await apiFetch('/api/profiles');
                 if (res.ok) {
                     const { data } = await res.json() as { data: Profile[] };
-                    setProfiles(data);
-
-                    const cookieId = readProfileCookie();
-                    const picked = data.find(p => p.id === cookieId) ?? null;
-
-                    // Without a cookie the server falls back to the first profile,
-                    // so the client has to fall back to the same one to stay in sync.
-                    setActiveId((picked ?? data[0])?.id ?? null);
-                    setHasPicked(picked !== null);
+                    apply(data);
+                    writeCachedProfiles(data);
                 }
             } catch (e) {
                 console.error('[Profiles] Failed to load profiles', e);
@@ -80,6 +113,11 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
         };
         load();
     }, []);
+
+    // Creates, renames and deletes land in the cached copy too.
+    useEffect(() => {
+        if (isLoaded && profiles.length > 0) writeCachedProfiles(profiles);
+    }, [profiles, isLoaded]);
 
     const selectProfile = useCallback((id: string) => {
         writeProfileCookie(id);

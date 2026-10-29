@@ -21,7 +21,7 @@ import { hasAccountSession } from './accountSession';
  * renew). The TV client keys its "wipe the stored token and re-pair" behaviour on this
  * header, so a recoverable cookie 401 no longer drops a working device back to pairing.
  */
-export const DEVICE_AUTH_HEADER = 'X-Xstream-Device-Auth';
+export const DEVICE_AUTH_HEADER = 'X-GarraTV-Device-Auth';
 export const DEVICE_AUTH_INVALID = 'invalid';
 
 /** Reads a `Authorization: Bearer <token>` header, if present and well formed. */
@@ -96,7 +96,7 @@ export const ACCOUNT_SESSION_REQUIRED = 'account_session_required';
 /**
  * Guard for routes that touch the Xtream account or the owner's settings. On top of
  * `enforceApiAccess`, the caller must be a paired device or a browser that signed in
- * (`xstream_session`); a visitor only reaches the free tier.
+ * (`garratv_session`); a visitor only reaches the free tier.
  */
 export async function enforceAccountAccess(request: Request): Promise<NextResponse | null> {
     const accessResponse = await enforceApiAccess(request);
