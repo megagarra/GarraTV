@@ -35,16 +35,17 @@ A loja assina o `.appx` na publicação — não é preciso comprar certificado.
 
 ## 3. Gerar o pacote com a identidade da loja
 
-No PowerShell, na pasta do projeto:
+A identidade do nome reservado já está no `scripts/package-windows.mjs`:
 
-```powershell
-$env:WINDOWS_STORE_IDENTITY = "<Package/Identity/Name>"
-$env:WINDOWS_STORE_PUBLISHER = "CN=<...>"
-$env:WINDOWS_STORE_PUBLISHER_DISPLAY = "<PublisherDisplayName>"
-npm run package:windows
-```
+| Campo | Valor |
+|---|---|
+| Package/Identity/Name | `megagarra.GarraTV` |
+| Package/Identity/Publisher | `CN=107A335D-5708-4AE2-93AE-41059E96B243` |
+| PublisherDisplayName | `megagarra` |
+| ID da Store | `9P9FL2MKFGNJ` |
 
-O arquivo para enviar é `dist/windows/GarraTV-<versão>.appx`.
+Basta rodar `npm run package:windows`. O arquivo para enviar é
+`dist/windows/GarraTV-<versão>.appx`.
 
 ## 4. Envio (submission)
 

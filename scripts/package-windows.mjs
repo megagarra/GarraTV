@@ -2,8 +2,9 @@
  * Builds the installable Windows app and, when the Windows 10 SDK is present,
  * the Microsoft Store package (.appx).
  *
- * The Store identity is not this repository's to invent. Partner Center shows
- * the real values after the name is reserved:
+ * The Store identity comes from Partner Center (Product identity of the
+ * reserved "GarraTV" name). Those values are public and are the defaults below;
+ * the env vars only override them (e.g. for a test identity):
  *   WINDOWS_STORE_IDENTITY
  *   WINDOWS_STORE_PUBLISHER          (CN=...)
  *   WINDOWS_STORE_PUBLISHER_DISPLAY
@@ -182,9 +183,9 @@ async function packageApp(sdk) {
                 createStartMenuShortcut: true,
             },
             appx: {
-                identityName: process.env.WINDOWS_STORE_IDENTITY || 'GarraTV',
-                publisher: process.env.WINDOWS_STORE_PUBLISHER || 'CN=GarraTV',
-                publisherDisplayName: process.env.WINDOWS_STORE_PUBLISHER_DISPLAY || 'Janderson Lemos',
+                identityName: process.env.WINDOWS_STORE_IDENTITY || 'megagarra.GarraTV',
+                publisher: process.env.WINDOWS_STORE_PUBLISHER || 'CN=107A335D-5708-4AE2-93AE-41059E96B243',
+                publisherDisplayName: process.env.WINDOWS_STORE_PUBLISHER_DISPLAY || 'megagarra',
                 applicationId: 'GarraTV',
                 languages: ['pt-BR', 'en-US'],
                 showNameOnTiles: true,
