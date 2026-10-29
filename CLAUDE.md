@@ -10,6 +10,10 @@ Idioma: **código e comentários sempre em inglês**; **textos de UI via i18n** 
 
 **Padrão de projeto para novas implementações:** siga `.claude/rules/project-standards.md` (carregado automaticamente).
 
+## Branches
+
+`main` = estável (só recebe `release/*` e `hotfix/*`, cada lançamento com tag `vX.Y.Z`); `dev` = integração. Trabalho novo sai da `dev` em `feature/<nome>` ou `fix/<nome>` e volta por PR para a `dev`. Nunca commite direto na `main`. Detalhes: `docs/branching.md`.
+
 ## Comandos
 
 - `npm run dev` — servidor de desenvolvimento (http://localhost:3000).

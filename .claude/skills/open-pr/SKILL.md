@@ -8,7 +8,7 @@ Fluxo para abrir um PR no GarraTV.
 ## Antes de abrir
 
 1. Rode `/build-check` (lint + build completo). Não abra PR com build quebrado.
-2. Confirme que não está na `main` — commits vão sempre numa feature branch.
+2. Confirme que não está na `main` nem na `dev` — commits vão sempre numa `feature/*` ou `fix/*` saída da `dev`, e o PR tem como base a **`dev`** (a `main` só recebe `release/*` e `hotfix/*`; ver `docs/branching.md`).
 3. A branch deve ter **exatamente um commit** (`git commit --amend` se precisar ajustar).
    Mensagem em inglês, imperativo, sem prefixo do tipo `feat:`, até 50 caracteres.
 
