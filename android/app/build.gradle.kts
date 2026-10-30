@@ -24,12 +24,14 @@ fun versionCodeOf(name: String): Int {
 
 android {
     namespace = "com.garratv.app"
-    compileSdk = 35
+    // Google Play: new apps and updates must target Android 16 (API 36) from Aug 31, 2026.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.garratv.app"
-        minSdk = 24
-        targetSdk = 35
+        // Android 5.0: old TV boxes and phones too (the bundled SQLite supports it).
+        minSdk = 21
+        targetSdk = 36
         versionCode = versionCodeOf(appVersionName)
         versionName = appVersionName
     }

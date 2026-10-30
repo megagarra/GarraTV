@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -19,6 +20,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.window.OnBackInvokedDispatcher
 import java.io.File
 
 /**
@@ -105,6 +107,11 @@ class MainActivity : Activity() {
 
         setContentView(webView)
         hideSystemBars()
+        // Apps targeting Android 16 no longer get onBackPressed(): Back (the remote's
+        // too) arrives through the back-invoked dispatcher, available from Android 13.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
+        }
         if (savedInstanceState == null) webView.loadUrl("${AppRequestHandler.ORIGIN}/garratv/")
         else webView.restoreState(savedInstanceState)
     }
@@ -143,6 +150,10 @@ class MainActivity : Activity() {
      */
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        handleBack()
+    }
+
+    private fun handleBack() {
         if (customView != null) {
             webView.webChromeClient?.onHideCustomView()
             return
