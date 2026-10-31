@@ -4,6 +4,8 @@ import android.net.Uri
 import android.webkit.WebResourceResponse
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FilterInputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -24,6 +26,31 @@ internal fun reasonFor(status: Int): String = when (status) {
     502 -> "Bad Gateway"
     503 -> "Service Unavailable"
     else -> "Status $status"
+}
+
+/**
+ * The WebView applies a request's `Range` to an intercepted body on its own: it
+ * skips the range start in the stream we hand back. Our bodies already begin
+ * there (the Range went upstream and the provider answered 206), so skipping
+ * again landed `start` bytes too far — a seek or a second read in a file got the
+ * wrong bytes ("PIPELINE_ERROR_DECODE … audio packet", demuxer errors). This
+ * stream absorbs that first skip without consuming anything.
+ */
+internal class PreSkippedStream(inner: InputStream, private var alreadySkipped: Long) : FilterInputStream(inner) {
+    override fun skip(n: Long): Long {
+        if (alreadySkipped > 0 && n > 0) {
+            val absorbed = minOf(n, alreadySkipped)
+            alreadySkipped -= absorbed
+            return absorbed
+        }
+        return super.skip(n)
+    }
+}
+
+/** Start offset of a `Range: bytes=N-` request header, or 0. */
+internal fun rangeStart(requestHeaders: Map<String, String>): Long {
+    val value = requestHeaders.entries.firstOrNull { it.key.equals("Range", ignoreCase = true) }?.value ?: return 0
+    return Regex("""bytes=(\d+)-""").find(value)?.groupValues?.get(1)?.toLongOrNull() ?: 0
 }
 
 /** WebResourceResponse rejects 3xx and anything outside 100..599. */
@@ -192,6 +219,8 @@ class VodProxy(private val credentials: Credentials) {
             val body = if (method == "HEAD") {
                 connection.disconnect()
                 ByteArrayInputStream(ByteArray(0))
+            } else if (status == 206) {
+                PreSkippedStream(connection.inputStream, rangeStart(requestHeaders))
             } else {
                 connection.inputStream
             }
@@ -241,7 +270,11 @@ object NetProxy {
                 status,
                 reasonFor(status),
                 responseHeaders,
-                if (method == "HEAD" || stream == null) ByteArrayInputStream(ByteArray(0)) else stream,
+                when {
+                    method == "HEAD" || stream == null -> ByteArrayInputStream(ByteArray(0))
+                    connection.responseCode == 206 -> PreSkippedStream(stream, rangeStart(requestHeaders))
+                    else -> stream
+                },
             )
         } catch (error: Exception) {
             errorResponse(502, error.message ?: "Network error")

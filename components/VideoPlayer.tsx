@@ -79,6 +79,16 @@ const RESUME_TOLERANCE_SEC = 3;
 const RESUME_MAX_ATTEMPTS = 6;
 /** Minimum spacing between re-seeks, so a slow seek is not interrupted by the next. */
 const RESUME_RETRY_INTERVAL_MS = 1000;
+/** Reopenings of a direct file (MP4/MKV) after decode errors before showing the error. */
+const DECODE_RECOVERY_MAX = 6;
+/** How long the emptied element rests so the hardware decoder is really released. */
+const DECODE_RELEASE_MS = 800;
+/** A failure this close to the last reopening counts as "the same spot". */
+const DECODE_SAME_SPOT_SEC = 3;
+/** Extra skip added each time it breaks at the same spot again. */
+const DECODE_SKIP_SEC = 1.5;
+/** Clean playback after a recovery that resets the attempt count. */
+const DECODE_FORGIVE_SEC = 60;
 /** How long the "watch from the beginning" offer stays up after a resume. */
 const START_OVER_PROMPT_MS = 10000;
 
@@ -1139,6 +1149,54 @@ export default function VideoPlayer({
             }
         };
 
+        // Direct files only (MP4/MKV). The hardware audio decoder behind Android
+        // TV WebViews (MediaCodec) sometimes stalls mid-file and the pipeline dies
+        // with MEDIA_ERR_DECODE ("Failed to send audio packet for decoding"),
+        // although the same bytes play fine from a fresh pipeline. Reopening on top
+        // of the stuck decoder fails again at once, so the element is first emptied
+        // (which releases the decoders), then the file is reopened where it broke.
+        // Only a failure at the same spot again skips a little, growing each time.
+        let decodeRecoveries = 0;
+        let lastRecoveryAt = -Infinity;
+        let decodeSkip = 0;
+        let recoveryTimer = 0;
+        const recoverFromDecodeError = (): boolean => {
+            const failure = video.error;
+            if (useHlsJs || !failure || failure.code !== MediaError.MEDIA_ERR_DECODE) return false;
+            if (decodeRecoveries >= DECODE_RECOVERY_MAX) return false;
+            decodeRecoveries += 1;
+            // The message carries the packet time in microseconds: `timestamp=8469333`.
+            const packet = /timestamp=(\d+)/.exec(failure.message || '');
+            const failedAt = Math.max(video.currentTime || 0, packet ? Number(packet[1]) / 1e6 : 0);
+            decodeSkip = failedAt < lastRecoveryAt + DECODE_SAME_SPOT_SEC ? decodeSkip + DECODE_SKIP_SEC : 0;
+            const resumeAt = failedAt + decodeSkip;
+            lastRecoveryAt = resumeAt;
+            console.warn(`[VideoPlayer] Decode error at ${failedAt.toFixed(1)}s, reopening at ${resumeAt.toFixed(1)}s (attempt ${decodeRecoveries}).`);
+            setIsBuffering(true);
+            video.removeAttribute('src');
+            video.load();
+            window.clearTimeout(recoveryTimer);
+            recoveryTimer = window.setTimeout(() => {
+                video.addEventListener('loadedmetadata', () => {
+                    try {
+                        video.currentTime = resumeAt;
+                    } catch (e) {
+                        console.warn('[VideoPlayer] Seek after decode recovery rejected:', e);
+                    }
+                    safePlay();
+                }, { once: true });
+                video.src = src;
+                video.load();
+            }, DECODE_RELEASE_MS);
+            return true;
+        };
+        // A stretch of clean playback earns the attempts back: a long episode may
+        // hit the stall more than once, far apart.
+        const forgiveDecodeRecoveries = () => {
+            if (decodeRecoveries > 0 && video.currentTime > lastRecoveryAt + DECODE_FORGIVE_SEC) decodeRecoveries = 0;
+        };
+        video.addEventListener('timeupdate', forgiveDecodeRecoveries);
+
         const waitForBufferedAutoplay = () => {
             if (!autoPlay) {
                 setIsBuffering(false);
@@ -1292,6 +1350,8 @@ export default function VideoPlayer({
 
             video.addEventListener('error', () => {
                 const error = video.error;
+                // Reopening resets video.error, so a recovered error reaches no one else.
+                if (!error || recoverFromDecodeError()) return;
                 if (looksLikeCorsMediaError(error) && isCrossOriginSrc(src) && corsFallbackFiredForSrcRef.current !== src) {
                     corsFallbackFiredForSrcRef.current = src;
                     console.warn('[VideoPlayer] Cross-origin playback error detected, falling back.');
@@ -1428,6 +1488,7 @@ export default function VideoPlayer({
 
         const handleVideoError = () => {
             const error = video.error;
+            if (!error || recoverFromDecodeError()) return;
             if (looksLikeCorsMediaError(error) && isCrossOriginSrc(src) && corsFallbackFiredForSrcRef.current !== src) {
                 corsFallbackFiredForSrcRef.current = src;
                 console.warn('[VideoPlayer] Cross-origin playback error detected, falling back.');
@@ -1469,6 +1530,8 @@ export default function VideoPlayer({
             window.clearTimeout(resetPlaybackStateTimer);
             cancelBufferedAutoplayWait?.();
             playSettleTimers.forEach(timer => window.clearTimeout(timer));
+            window.clearTimeout(recoveryTimer);
+            video.removeEventListener('timeupdate', forgiveDecodeRecoveries);
             if (hls) {
                 onHlsInstanceRef.current?.(null);
                 hls.destroy();
