@@ -268,13 +268,15 @@ export function useSyncStatus() {
 
 /**
  * Whether screens must wait behind the catalog loading screen: until the first
- * catalog check answers, and while there is no complete catalog yet (first sign-in,
- * after signing out, or a first sync that failed). A refresh of an existing
- * catalog — the daily one takes 10+ minutes on throttled providers — runs in the
- * background with the current catalog on screen and a progress pill in the header.
+ * catalog check answers, during every sync (first one, the refresh button or the
+ * daily update), and while there is no complete catalog after a failed first sync.
+ * Every sync locks the screen on purpose: on a TV the remote keeps moving focus
+ * over a catalog that is being rewritten underneath it, which led to half-loaded
+ * rows and dead clicks. When a sync completes, SyncHomeRedirect takes the user to
+ * the home screen. The player is the one place left running (DashboardChrome).
  */
 export function useCatalogBlocked(): boolean {
     const { catalogChecked, isSyncing, syncError, lastSync } = useData();
-    if (!catalogChecked) return true;
-    return lastSync === null && (isSyncing || syncError !== null);
+    if (!catalogChecked || isSyncing) return true;
+    return lastSync === null && syncError !== null;
 }
