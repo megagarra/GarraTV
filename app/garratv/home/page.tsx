@@ -16,6 +16,7 @@ import Shell from '@/components/garratv/Shell';
 import PosterTile from '@/components/garratv/PosterTile';
 import { formatEpgTime } from '@/components/garratv/epg';
 import { sizedImage } from '@/components/garratv/images';
+import { minutesLeft, watchState } from '@/app/lib/watchState';
 import { display, focusCard, focusShortcut, primaryButton } from '@/components/garratv/styles';
 
 // oklch() tints from the design, pre-converted: Chrome 53 has no oklch().
@@ -299,7 +300,7 @@ export default function GarraTVHomePage() {
     const android = useIsAndroidApp();
     const { locale } = useI18n();
     const { isSyncing, lastSync, syncData } = useData();
-    const { favorites } = useFavorites();
+    const { favorites, isFavorite } = useFavorites();
     const { isAuthenticated } = useAuth();
     const { progressMap } = useWatchProgress();
     const [counts, setCounts] = useState<{ live: number; movie: number; series: number } | null>(null);
@@ -384,6 +385,16 @@ export default function GarraTVHomePage() {
         .filter((item) => item && item.name)
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, 12);
+
+    // "S2:E3 · 12 min left": where the title stopped, at a glance.
+    const continueCaption = (item: (typeof continueItems)[number]) => {
+        const state = watchState(item);
+        const episode = item.type === 'series' && item.seasonNum && item.episodeNum
+            ? t('garratv.episodeShort', { season: item.seasonNum, episode: item.episodeNum })
+            : '';
+        const left = state.remaining > 0 ? t('garratv.minutesLeft', { n: minutesLeft(state) }) : '';
+        return [episode, left].filter(Boolean).join(' · ') || undefined;
+    };
 
     const fmt = (value: number | undefined) => (value === undefined ? '…' : value.toLocaleString(locale));
     const liveFavorites = favorites.filter((item) => item.type === 'live').length;
@@ -495,6 +506,9 @@ export default function GarraTVHomePage() {
                                     title={item.name}
                                     image={item.image}
                                     progress={item.duration > 0 ? item.progress / item.duration : undefined}
+                                    caption={continueCaption(item)}
+                                    favorite={isFavorite(item.type === 'series' && item.seriesId ? item.seriesId : item.streamId, item.type)}
+                                    favoriteLabel={t('garratv.inFavorites')}
                                     favoriteType={item.type === 'series' ? 'series' : 'movie'}
                                     favoriteId={item.type === 'series' && item.seriesId ? item.seriesId : item.streamId}
                                 />

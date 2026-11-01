@@ -113,6 +113,8 @@ export default function WatchMoviePage() {
     // Opened straight into the player (GarraTV "Assistir", continue watching):
     // closing it returns to where the user came from instead of this detail screen.
     const [openedToPlay] = useState(() => searchParams.get('autoplay') === 'true');
+    // "From the start" on the title screen: the saved position is ignored once.
+    const [startFromZero] = useState(() => searchParams.get('start') === '0');
     const isJoining = searchParams.get('join') === '1';
     const joinExt = searchParams.get('ext') || undefined;
     const joinPoster = searchParams.get('poster') || undefined;
@@ -147,7 +149,7 @@ export default function WatchMoviePage() {
 
     // Calculate resumeTime synchronously based on progressLoaded
     const resumeTime = useMemo(() => {
-        if (!progressLoaded) return 0;
+        if (!progressLoaded || startFromZero) return 0;
         const progress = getProgress(streamId);
         if (progress && progress.progress > 10) {
             // Check if progress is near the end (more than 95%)
@@ -158,7 +160,7 @@ export default function WatchMoviePage() {
             return progress.progress;
         }
         return 0;
-    }, [streamId, getProgress, progressLoaded]);
+    }, [streamId, getProgress, progressLoaded, startFromZero]);
 
     // The start point is baked into ffmpeg when the broadcast is created, so it is decided
     // once. Leaving it derived from the saved progress would move it while broadcasting

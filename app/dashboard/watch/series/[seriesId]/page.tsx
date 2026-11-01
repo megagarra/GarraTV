@@ -163,6 +163,8 @@ export default function WatchSeriesPage() {
     // Opened straight into the player (GarraTV episode list, continue watching):
     // closing it returns to where the user came from instead of this detail screen.
     const [openedToPlay] = useState(() => searchParams.get('autoplay') === 'true');
+    // "From the start" on the title screen: only the episode it was asked for.
+    const [startFromZeroEpisode] = useState(() => (searchParams.get('start') === '0' ? searchParams.get('episode') : null));
     const isJoining = searchParams.get('join') === '1';
     const joinExt = searchParams.get('ext') || undefined;
     const joinPoster = searchParams.get('poster') || undefined;
@@ -198,6 +200,7 @@ export default function WatchSeriesPage() {
 
     // Calculate resumeTime synchronously based on selected episode
     const resumeTime = useMemo(() => {
+        if (selectedEpisode && String(selectedEpisode.id) === startFromZeroEpisode) return 0;
         if (selectedEpisode) {
             const progress = getProgress(selectedEpisode.id);
             if (progress && progress.progress > 10) {
@@ -211,7 +214,7 @@ export default function WatchSeriesPage() {
             }
         }
         return 0;
-    }, [selectedEpisode?.id, getProgress]);
+    }, [selectedEpisode?.id, getProgress, startFromZeroEpisode]);
 
     // The start point is baked into ffmpeg when the broadcast is created, so it is decided
     // once per episode. Leaving it derived from the saved progress would move it while

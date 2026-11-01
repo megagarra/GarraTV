@@ -605,6 +605,16 @@
         "loadingErrorTitle": "Couldn't load the catalog",
         "loadingRetry": "Try again",
         "loadingOtherAccount": "Use another account",
-        "loadingCategories": "Downloading category {done} of {total}"
+        "loadingCategories": "Downloading category {done} of {total}",
+        "watched": "Watched",
+        "inFavorites": "In favorites",
+        "minutesLeft": "{n} min left",
+        "resumeAt": "Resume from {time}",
+        "continueEpisode": "Continue S{season}:E{episode}",
+        "nextEpisode": "Next: S{season}:E{episode}",
+        "startOver": "From the start",
+        "watchAgain": "Watch again",
+        "stoppedAt": "Stopped at {time}",
+        "episodeShort": "S{season}:E{episode}"
     }
 }

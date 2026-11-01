@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import { getDeviceProfile } from '@/app/lib/deviceProfile';
 import { apiFetch } from '@/app/lib/apiClient';
+import { WATCHED_RATIO } from '@/app/lib/watchState';
 
 export interface WatchProgress {
     streamId: string | number;
@@ -155,8 +156,13 @@ export const WatchProgressProvider = ({ children }: { children: ReactNode }) => 
             const isNewEntry = !existing;
             const episodeChanged = existing?.episodeId !== progress.episodeId;
             const durationArrived = !existing?.duration && finalDuration > 0;
+            // The last seconds fall inside the sync threshold; without this a finished
+            // title stayed saved a few seconds short and never showed as watched.
+            const finishedNow = finalDuration > 0
+                && progress.progress / finalDuration >= WATCHED_RATIO
+                && !(isSameEpisode && existing.progress / finalDuration >= WATCHED_RATIO);
 
-            if (isNewEntry || progressDiff > minProgressDiff || episodeChanged || durationArrived) {
+            if (isNewEntry || progressDiff > minProgressDiff || episodeChanged || durationArrived || finishedNow) {
                 // Sync to granular API immediately
                 const type = progress.type;
                 const id = contentId;

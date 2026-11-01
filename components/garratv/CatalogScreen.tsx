@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n, useT } from '@/app/context/I18nContext';
+import { useFavorites } from '@/app/context/FavoritesContext';
+import { useWatchProgress } from '@/app/context/WatchProgressContext';
+import { watchState } from '@/app/lib/watchState';
 import type { ContentType } from '@/app/lib/dbTypes';
 import type { SortOption } from '@/app/lib/catalogSort';
 import { createLingerPrefetch } from '@/app/lib/detailPrefetch';
@@ -33,6 +36,8 @@ export default function CatalogScreen({ type }: { type: Extract<ContentType, 'mo
     });
     const visibleItems = data.items.slice(windowStart, windowEnd);
     const scrollRef = useRef<HTMLElement>(null);
+    const { isFavorite } = useFavorites();
+    const { progressMap } = useWatchProgress();
     // The poster the remote rests on has its detail ready before it is opened.
     const linger = useMemo(() => createLingerPrefetch(), []);
     useEffect(() => linger.cancel, [linger]);
@@ -142,7 +147,11 @@ export default function CatalogScreen({ type }: { type: Extract<ContentType, 'mo
                         // Flex-wrap columns instead of CSS grid: grid needs Chrome 57.
                         <div ref={gridRef} onFocus={linger.onFocus} className="flex flex-wrap -mx-2.5 phone:-mx-1.5">
                             {topSpace > 0 && <div className="w-full" style={{ height: topSpace }} />}
-                            {visibleItems.map((item, index) => (
+                            {visibleItems.map((item, index) => {
+                                // Series keep the last episode played under their own id.
+                                const saved = progressMap[String(item.id)];
+                                const state = watchState(saved && saved.type === type ? saved : undefined);
+                                return (
                                 <div key={item.id} data-window-cell className="w-1/3 sm:w-1/4 lg:w-1/5 xl:w-1/6 2xl:w-[14.285%] px-2.5 pb-7 phone:w-[14.285%] phone:px-1.5 phone:pb-4">
                                     <PosterTile
                                         href={`/garratv/title/${type}/${item.id}`}
@@ -154,9 +163,16 @@ export default function CatalogScreen({ type }: { type: Extract<ContentType, 'mo
                                         initialFocus={windowStart + index === 0}
                                         favoriteType={type}
                                         favoriteId={item.id}
+                                        favorite={isFavorite(item.id, type)}
+                                        favoriteLabel={t('garratv.inFavorites')}
+                                        // A series' last episode ending says nothing about the series.
+                                        watched={type === 'movie' && state.watched}
+                                        watchedLabel={t('garratv.watched')}
+                                        progress={state.inProgress ? state.ratio : undefined}
                                     />
                                 </div>
-                            ))}
+                                );
+                            })}
                             {bottomSpace > 0 && <div className="w-full" style={{ height: bottomSpace }} />}
                         </div>
                     )}
