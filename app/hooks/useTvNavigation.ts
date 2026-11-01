@@ -151,17 +151,24 @@ function runDirectionalNav(direction: string) {
 
     const currentRect = activeElement.getBoundingClientRect();
     const isVertical = direction === 'ArrowUp' || direction === 'ArrowDown';
+    const threshold = 5; // 5px threshold for overlap/alignment
 
     // Candidates that share the current element's span on the cross axis are in
     // the same column (going up/down) or the same row (going left/right), and
-    // always win over one that merely happens to be close. Weighted distance
-    // alone is not enough: from a button in the settings column, a nav rail item
-    // slightly below but far to the left could beat the next setting further
-    // down the same column, so the cursor jumped back into the menu.
-    let bestAligned: HTMLElement | null = null;
-    let bestAlignedDistance = Infinity;
+    // always win over one that merely happens to be close. Among those, the
+    // nearest row (or column) comes first and only then the best-centered item
+    // in it: a full-width row (an episode) shares its span with everything above,
+    // so ranking by centre distance alone skipped the season picker and the
+    // title's buttons and landed in the header.
+    const aligned: { el: HTMLElement; gap: number; cross: number }[] = [];
     let bestLoose: HTMLElement | null = null;
     let bestLooseDistance = Infinity;
+    // The top bar is reached only once nothing in the content lies that way:
+    // its buttons sit right above whatever is on the right edge (the season
+    // picker), so going up from there skipped the title's own buttons.
+    const fromContent = !activeElement.closest('header');
+    let bestHeader: HTMLElement | null = null;
+    let bestHeaderDistance = Infinity;
 
     focusableElements.forEach((el) => {
         if (el === activeElement) return;
@@ -172,26 +179,22 @@ function runDirectionalNav(direction: string) {
         // the nearest thing above and to the left of everything.
         if (rect.width === 0 && rect.height === 0) return;
 
-        const threshold = 5; // 5px threshold for overlap/alignment
-
-        // Filter based on direction relative to current element
-        let isValid = false;
+        // How far ahead the candidate starts, along the direction of travel.
+        let gap: number;
         switch (direction) {
             case 'ArrowUp':
-                isValid = rect.bottom <= currentRect.top + threshold;
+                gap = currentRect.top - rect.bottom;
                 break;
             case 'ArrowDown':
-                isValid = rect.top >= currentRect.bottom - threshold;
+                gap = rect.top - currentRect.bottom;
                 break;
             case 'ArrowLeft':
-                isValid = rect.right <= currentRect.left + threshold;
+                gap = currentRect.left - rect.right;
                 break;
-            case 'ArrowRight':
-                isValid = rect.left >= currentRect.right - threshold;
-                break;
+            default:
+                gap = rect.left - currentRect.right;
         }
-
-        if (!isValid) return;
+        if (gap < -threshold) return;
 
         const currentCenter = { x: currentRect.left + currentRect.width / 2, y: currentRect.top + currentRect.height / 2 };
         const candidateCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -199,29 +202,93 @@ function runDirectionalNav(direction: string) {
         const dx = Math.abs(candidateCenter.x - currentCenter.x);
         const dy = Math.abs(candidateCenter.y - currentCenter.y);
 
-        // Primary axis first, cross-axis deviation as a penalty.
-        const distance = isVertical ? dy + (dx * 2) : dx + (dy * 2);
-
         const isAligned = isVertical
             ? rect.left < currentRect.right && rect.right > currentRect.left
             : rect.top < currentRect.bottom && rect.bottom > currentRect.top;
 
-        if (isAligned) {
-            if (distance < bestAlignedDistance) {
-                bestAlignedDistance = distance;
-                bestAligned = el;
+        if (fromContent && el.closest('header')) {
+            const distance = isVertical ? dy + (dx * 2) : dx + (dy * 2);
+            if (distance < bestHeaderDistance) {
+                bestHeaderDistance = distance;
+                bestHeader = el;
             }
-        } else if (distance < bestLooseDistance) {
+            return;
+        }
+
+        if (isAligned) {
+            aligned.push({ el, gap: Math.max(0, gap), cross: isVertical ? dx : dy });
+            return;
+        }
+
+        // Primary axis first, cross-axis deviation as a penalty.
+        const distance = isVertical ? dy + (dx * 2) : dx + (dy * 2);
+        if (distance < bestLooseDistance) {
             bestLooseDistance = distance;
             bestLoose = el;
         }
     });
 
+    // Nearest row/column ahead, then the best-centered element within it.
+    let bestAligned: HTMLElement | null = null;
+    if (aligned.length > 0) {
+        const nearestGap = aligned.reduce((min, c) => Math.min(min, c.gap), Infinity);
+        let bestCross = Infinity;
+        aligned.forEach((c) => {
+            if (c.gap <= nearestGap + ROW_TOLERANCE_PX && c.cross < bestCross) {
+                bestCross = c.cross;
+                bestAligned = c.el;
+            }
+        });
+    }
+
     // Only leave the current column/row when nothing in it lies ahead.
     // The cast mirrors the original code: TypeScript narrows both to `never`
     // because it cannot see the assignments made inside the forEach closure.
-    const target = (bestAligned ?? bestLoose) as HTMLElement | null;
+    const target = (bestAligned ?? bestLoose ?? bestHeader) as HTMLElement | null;
     if (target) {
         target.focus();
+        reveal(target, direction === 'ArrowUp');
+    }
+}
+
+/** Elements this close along the travel axis count as one row (or column). */
+const ROW_TOLERANCE_PX = 12;
+/** Room kept between a focused element and the edge of what scrolls it. */
+const REVEAL_MARGIN_PX = 24;
+
+function scrollParentOf(el: HTMLElement): HTMLElement | null {
+    for (let node = el.parentElement; node; node = node.parentElement) {
+        const style = window.getComputedStyle(node);
+        if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+        // A fixed layer (player controls, a modal) does not move with the page behind it.
+        if (style.position === 'fixed') return null;
+    }
+    return (document.scrollingElement as HTMLElement | null) ?? null;
+}
+
+/**
+ * Keeps the focused element whole on screen; focus() alone leaves one cut by the
+ * edge of its scroll area. Going up to something that fits on the first screen
+ * scrolls back to the very top, so the title and poster above the buttons show
+ * again. Done by hand: scrollIntoView options need Chrome 61 (webOS 4 is 53).
+ */
+function reveal(el: HTMLElement, goingUp: boolean) {
+    const parent = scrollParentOf(el);
+    if (!parent) return;
+    const isPage = parent === document.scrollingElement;
+    const view = isPage ? { top: 0, bottom: window.innerHeight } : parent.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+
+    if (goingUp) {
+        const fromContentTop = rect.bottom - view.top + parent.scrollTop;
+        if (fromContentTop + REVEAL_MARGIN_PX <= parent.clientHeight) {
+            parent.scrollTop = 0;
+            return;
+        }
+    }
+    if (rect.top < view.top + REVEAL_MARGIN_PX) {
+        parent.scrollTop -= view.top + REVEAL_MARGIN_PX - rect.top;
+    } else if (rect.bottom > view.bottom - REVEAL_MARGIN_PX) {
+        parent.scrollTop += rect.bottom - (view.bottom - REVEAL_MARGIN_PX);
     }
 }
