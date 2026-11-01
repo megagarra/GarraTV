@@ -304,7 +304,8 @@ export default function GarraTVHomePage() {
     const { progressMap } = useWatchProgress();
     const [counts, setCounts] = useState<{ live: number; movie: number; series: number } | null>(null);
     const [images, setImages] = useState<{ live?: string; movie?: string; series?: string }>({});
-    const [spotlight, setSpotlight] = useState<db.Spotlight | null>(null);
+    // Filled card by card: the live picks probe the EPG and may take far longer.
+    const [spotlight, setSpotlight] = useState<Partial<Record<db.SpotlightKind, db.SpotlightItem[]>>>({});
     const [revealTimedOut, setRevealTimedOut] = useState(false);
 
     // Highlights normally answer at once (server-side stale-while-revalidate);
@@ -319,8 +320,10 @@ export default function GarraTVHomePage() {
         if (!isAuthenticated) return undefined;
         let cancelled = false;
         const load = () => {
-            db.getSpotlight(locale).then((result) => {
-                if (!cancelled && result) setSpotlight(result);
+            (['movie', 'series', 'live'] as const).forEach((kind) => {
+                db.getSpotlightPart(locale, kind).then((items) => {
+                    if (!cancelled && items) setSpotlight((current) => ({ ...current, [kind]: items }));
+                });
             });
         };
         load();
@@ -362,7 +365,8 @@ export default function GarraTVHomePage() {
         if (item?.poster) return sizedImage(item.poster, 'posterLarge');
         return sizedImage(fallback, 'backdrop');
     };
-    const dataReady = counts !== null && (spotlight !== null || revealTimedOut);
+    const spotlightReady = !!(spotlight.live && spotlight.movie && spotlight.series);
+    const dataReady = counts !== null && (spotlightReady || revealTimedOut);
     const picturesReady = useImagesReady([
         firstPicture(spotlight?.live, images.live),
         firstPicture(spotlight?.movie, images.movie),
@@ -429,7 +433,7 @@ export default function GarraTVHomePage() {
                         href="/garratv/live"
                         title={t('garratv.liveTv')}
                         subtitle={t('garratv.liveSummary', { channels: fmt(counts?.live), favorites: fmt(liveFavorites) })}
-                        spotlight={spotlight ? spotlight.live : []}
+                        spotlight={spotlight.live ?? []}
                         fallbackImage={images.live}
                         tint={TINT.live}
                         icon={Tv}
@@ -442,7 +446,7 @@ export default function GarraTVHomePage() {
                             href="/garratv/movies"
                             title={t('garratv.movies')}
                             subtitle={t('garratv.moviesSummary', { n: fmt(counts?.movie) })}
-                            spotlight={spotlight ? spotlight.movie : []}
+                            spotlight={spotlight.movie ?? []}
                             fallbackImage={images.movie}
                             tint={TINT.movie}
                             icon={Film}
@@ -452,7 +456,7 @@ export default function GarraTVHomePage() {
                             href="/garratv/series"
                             title={t('garratv.series')}
                             subtitle={t('garratv.seriesSummary', { n: fmt(counts?.series) })}
-                            spotlight={spotlight ? spotlight.series : []}
+                            spotlight={spotlight.series ?? []}
                             fallbackImage={images.series}
                             tint={TINT.series}
                             icon={Clapperboard}

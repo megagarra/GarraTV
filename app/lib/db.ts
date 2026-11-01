@@ -231,6 +231,25 @@ export interface Spotlight {
     generatedAt: number;
 }
 
+export type SpotlightKind = 'live' | 'movie' | 'series';
+
+/** One home card's picks; the live card is the slow one, so each card asks on its own. */
+export const getSpotlightPart = async (lang: string, kind: SpotlightKind): Promise<SpotlightItem[] | null> => {
+    try {
+        const response = await apiFetch('/api/spotlight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lang, kind }),
+        });
+        if (!response.ok) return null;
+        const payload = await response.json() as { data?: SpotlightItem[] };
+        return payload.data ?? null;
+    } catch (error) {
+        console.error('[Spotlight] Request failed', error);
+        return null;
+    }
+};
+
 /** Home "right now" picks: live programme on air, trending/new movies and series. */
 export const getSpotlight = async (lang: string): Promise<Spotlight | null> => {
     try {

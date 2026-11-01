@@ -26,11 +26,19 @@ const REDIRECT_TTL_MS = 5 * 60 * 1000;
 const MAX_REDIRECTS = 200;
 const redirects = new Map<string, { url: string; at: number }>();
 
+/**
+ * The player page warms a title up with a HEAD so the real request skips the panel.
+ * A CDN that refuses HEAD says nothing about the URL it was redirected to.
+ */
+function refusedHead(init: RequestInit, response: Response): boolean {
+    return init.method === 'HEAD' && response.status === 405;
+}
+
 async function fetchUpstream(upstreamUrl: string, init: RequestInit): Promise<Response> {
     const known = redirects.get(upstreamUrl);
     if (known && Date.now() - known.at < REDIRECT_TTL_MS) {
         const direct = await fetch(known.url, init).catch(() => null);
-        if (direct && (direct.ok || direct.status === 416)) return direct;
+        if (direct && (direct.ok || direct.status === 416 || refusedHead(init, direct))) return direct;
         // The player gave up on this range (it does that constantly while seeking):
         // not a sign the cached URL went stale.
         if (init.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -39,7 +47,7 @@ async function fetchUpstream(upstreamUrl: string, init: RequestInit): Promise<Re
         redirects.delete(upstreamUrl);
     }
     const upstream = await fetch(upstreamUrl, init);
-    if (upstream.ok && upstream.url && upstream.url !== upstreamUrl) {
+    if ((upstream.ok || refusedHead(init, upstream)) && upstream.url && upstream.url !== upstreamUrl) {
         redirects.delete(upstreamUrl);
         redirects.set(upstreamUrl, { url: upstream.url, at: Date.now() });
         if (redirects.size > MAX_REDIRECTS) {

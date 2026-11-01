@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChevronDown, Heart, Play, Star, Video } from 'lucide-react';
@@ -11,6 +11,8 @@ import { useWatchProgress } from '@/app/context/WatchProgressContext';
 import { useT } from '@/app/context/I18nContext';
 import { apiFetch } from '@/app/lib/apiClient';
 import * as db from '@/app/lib/db';
+import { recallDetail, rememberDetail } from '@/app/lib/detailMemo';
+import { warmVod } from '@/app/lib/vodWarmup';
 import type { CachedStream } from '@/app/lib/dbTypes';
 import { formatRating } from '@/app/lib/formatRating';
 import Shell from '@/components/garratv/Shell';
@@ -37,13 +39,14 @@ interface VodInfo {
 
 interface VodPayload {
     info?: VodInfo;
-    movie_data?: { name?: string };
+    movie_data?: { name?: string; container_extension?: string };
 }
 
 interface Episode {
     id: string;
     episode_num?: string | number;
     title?: string;
+    container_extension?: string;
     info?: { movie_image?: string; plot?: string; duration?: string; duration_secs?: number | string };
 }
 
@@ -51,9 +54,6 @@ interface SeriesPayload {
     info?: VodInfo;
     episodes?: Record<string, Episode[]>;
 }
-
-/** Full details already fetched this session, so going back to a title is instant. */
-const detailMemo = new Map<string, VodPayload | SeriesPayload>();
 
 /** What the catalog row alone can show before the provider's detail arrives. */
 function infoFromStream(row: CachedStream): VodInfo {
@@ -125,6 +125,9 @@ export default function GarraTVTitlePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [posterFailed, setPosterFailed] = useState(false);
+    // Container of the movie file, from the catalog row or the detail: enough to warm its URL.
+    const [movieExt, setMovieExt] = useState<string | undefined>(undefined);
+    const warmTimer = useRef(0);
 
     useEffect(() => {
         if (kind && id) loadDetail(kind, id);
@@ -134,12 +137,13 @@ export default function GarraTVTitlePage() {
         if (!kind || !id || !isAuthenticated) return undefined;
         let cancelled = false;
 
-        const memoKey = `${kind}:${id}`;
         let full = false;
         let provisional = false;
 
         const apply = (payload: VodPayload | SeriesPayload) => {
             setInfo(payload.info ?? null);
+            const ext = (payload as VodPayload).movie_data?.container_extension;
+            if (ext) setMovieExt(ext);
             if (kind === 'series') {
                 const seriesEpisodes = (payload as SeriesPayload).episodes ?? {};
                 setEpisodes(seriesEpisodes);
@@ -150,7 +154,7 @@ export default function GarraTVTitlePage() {
 
         const load = async () => {
             setError('');
-            const remembered = detailMemo.get(memoKey);
+            const remembered = recallDetail<VodPayload | SeriesPayload>(kind, id);
             if (remembered) {
                 // Opened before in this session: no request, no loading state.
                 apply(remembered);
@@ -166,6 +170,7 @@ export default function GarraTVTitlePage() {
                     if (cancelled || full || !row) return;
                     provisional = true;
                     setInfo(infoFromStream(row));
+                    if (row.container_extension) setMovieExt(row.container_extension);
                     setLoading(false);
                 })
                 .catch(() => undefined);
@@ -203,11 +208,7 @@ export default function GarraTVTitlePage() {
                 }
 
                 full = true;
-                detailMemo.set(memoKey, payload);
-                if (detailMemo.size > 100) {
-                    const oldest = detailMemo.keys().next().value;
-                    if (oldest !== undefined) detailMemo.delete(oldest);
-                }
+                rememberDetail(kind, id, payload);
                 apply(payload);
             } catch (err) {
                 console.error('[GarraTV] Title details failed', err);
@@ -233,6 +234,22 @@ export default function GarraTVTitlePage() {
         document.querySelector<HTMLElement>('[data-initial-focus="true"]')?.focus();
     }, [loading]);
 
+    // The provider's slow redirect is resolved while the user reads the synopsis,
+    // so "Watch" opens the CDN directly. Nothing plays on this screen.
+    const firstEpisodeOfSeason = season ? episodes[season]?.[0] : undefined;
+    useEffect(() => {
+        if (loading || !kind) return;
+        if (kind === 'movie') warmVod('movie', id, movieExt);
+        else if (firstEpisodeOfSeason) warmVod('series', firstEpisodeOfSeason.id, firstEpisodeOfSeason.container_extension);
+    }, [loading, kind, id, movieExt, firstEpisodeOfSeason]);
+    useEffect(() => () => window.clearTimeout(warmTimer.current), []);
+
+    // An episode the remote rests on for a moment is probably the next one played.
+    const warmEpisodeSoon = (episode: Episode) => {
+        window.clearTimeout(warmTimer.current);
+        warmTimer.current = window.setTimeout(() => warmVod('series', episode.id, episode.container_extension), 400);
+    };
+
     const backHref = kind === 'series' ? '/garratv/series' : '/garratv/movies';
     const sectionName = t(kind === 'series' ? 'garratv.series' : 'garratv.movies');
 
@@ -245,6 +262,7 @@ export default function GarraTVTitlePage() {
     }
 
     const seasonEpisodes = season ? (episodes[season] ?? []) : [];
+
     const saved = isFavorite(id, kind);
     const title = info?.name || '';
     const poster = httpUrl(info?.movie_image) || httpUrl(info?.cover);
@@ -400,6 +418,8 @@ export default function GarraTVTitlePage() {
                                     <Link
                                         key={episode.id}
                                         href={episodeHref(id, String(episode.id))}
+                                        onFocus={() => warmEpisodeSoon(episode)}
+                                        onBlur={() => window.clearTimeout(warmTimer.current)}
                                         data-focusable="true"
                                         data-own-focus="true"
                                         className="flex items-center px-4 py-[18px] rounded-lg border-b border-[#222222] outline-none transition-colors duration-200 hover:bg-[#1F1F1F] focus:bg-[#1F1F1F] focus:shadow-[inset_0_0_0_2px_#E50914]"

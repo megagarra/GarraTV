@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { enforceAccountAccess } from '@/app/lib/apiAuth';
-import { getSpotlight } from '@/app/lib/spotlight';
+import { getSpotlight, getSpotlightPart, type SpotlightKind } from '@/app/lib/spotlight';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 interface SpotlightRequestBody {
     lang?: string;
+    /** One card only; without it, all three. */
+    kind?: SpotlightKind;
 }
+
+const KINDS: SpotlightKind[] = ['live', 'movie', 'series'];
 
 /** TMDB language tags; anything else falls back to English. */
 function toLanguage(lang: string | undefined): string {
@@ -23,7 +27,12 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json().catch(() => ({})) as SpotlightRequestBody;
-        const data = await getSpotlight(toLanguage(body.lang));
+        const language = toLanguage(body.lang);
+        if (body.kind !== undefined) {
+            if (!KINDS.includes(body.kind)) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
+            return NextResponse.json({ data: await getSpotlightPart(language, body.kind) });
+        }
+        const data = await getSpotlight(language);
         return NextResponse.json({ data });
     } catch (error) {
         console.error('[Spotlight] Request failed', error);

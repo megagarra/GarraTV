@@ -89,6 +89,12 @@ const DECODE_SAME_SPOT_SEC = 3;
 const DECODE_SKIP_SEC = 1.5;
 /** Clean playback after a recovery that resets the attempt count. */
 const DECODE_FORGIVE_SEC = 60;
+// Direct files (MP4/MKV) are buffered by the browser itself, which keeps reading
+// ahead after play() and reports `canplaythrough` when it trusts the rate. Waiting
+// for the HLS-sized head start (up to 12 s on weaker devices) only meant seconds of
+// black screen before every movie and episode.
+const DIRECT_FILE_MIN_BUFFER_SEC = 2;
+const DIRECT_FILE_FALLBACK_MS = 4000;
 /** How long the "watch from the beginning" offer stays up after a resume. */
 const START_OVER_PROMPT_MS = 10000;
 
@@ -1204,10 +1210,13 @@ export default function VideoPlayer({
             }
 
             autoplayAwaitBuffer = true;
+            const minAhead = isHLS ? playbackProfile.minBufferSec : Math.min(playbackProfile.minBufferSec, DIRECT_FILE_MIN_BUFFER_SEC);
+            const fallbackMs = isHLS ? playbackProfile.fallbackMs : Math.min(playbackProfile.fallbackMs, DIRECT_FILE_FALLBACK_MS);
 
             const tryPlayWhenBuffered = () => {
                 const ahead = bufferedAheadSeconds(video);
-                if (ahead >= playbackProfile.minBufferSec) {
+                const browserTrustsRate = !isHLS && video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA;
+                if (ahead >= minAhead || browserTrustsRate) {
                     cancelBufferedAutoplayWait?.();
                     safePlay();
                 }
@@ -1216,19 +1225,21 @@ export default function VideoPlayer({
             const timeoutId = window.setTimeout(() => {
                 cancelBufferedAutoplayWait?.();
                 safePlay();
-            }, playbackProfile.fallbackMs);
+            }, fallbackMs);
 
             cancelBufferedAutoplayWait = () => {
                 autoplayAwaitBuffer = false;
                 window.clearTimeout(timeoutId);
                 video.removeEventListener('progress', tryPlayWhenBuffered);
                 video.removeEventListener('canplay', tryPlayWhenBuffered);
+                video.removeEventListener('canplaythrough', tryPlayWhenBuffered);
                 video.removeEventListener('loadeddata', tryPlayWhenBuffered);
                 cancelBufferedAutoplayWait = undefined;
             };
 
             video.addEventListener('progress', tryPlayWhenBuffered);
             video.addEventListener('canplay', tryPlayWhenBuffered);
+            video.addEventListener('canplaythrough', tryPlayWhenBuffered);
             video.addEventListener('loadeddata', tryPlayWhenBuffered);
             tryPlayWhenBuffered();
         };
