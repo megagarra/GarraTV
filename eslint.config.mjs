@@ -22,6 +22,11 @@ const eslintConfig = defineConfig([
     ".android-pkg/**",
     "android/app/**",
     "android/build/**",
+    // Other build output: the Windows package and its staging copy, and the
+    // TV emulators/simulators downloaded for testing.
+    "dist/**",
+    "desktop/staging/**",
+    ".tv-browsers/**",
   ]),
 ]);
 

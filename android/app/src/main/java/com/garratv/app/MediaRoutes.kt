@@ -87,15 +87,17 @@ private class RedirectCache(private val ttlMs: Long, private val capacity: Int) 
     }
 
     /** Opens [url], through its cached redirect when there is one; [usable] decides whether a cached hop worked. */
-    fun open(url: String, headers: Map<String, String>, usable: (Int) -> Boolean): HttpURLConnection {
+    fun open(url: String, headers: Map<String, String>, method: String = "GET", usable: (Int) -> Boolean): HttpURLConnection {
         get(url)?.let { known ->
-            val direct = runCatching { Upstream.open(known, headers = headers) }.getOrNull()
+            val direct = runCatching { Upstream.open(known, method = method, headers = headers) }.getOrNull()
             if (direct != null && usable(direct.responseCode)) return direct
             direct?.disconnect()
             forget(url)
         }
-        val connection = Upstream.open(url, headers = headers)
-        if (connection.responseCode in 200..299) put(url, connection.url.toString())
+        val connection = Upstream.open(url, method = method, headers = headers)
+        val status = connection.responseCode
+        // A CDN that refuses HEAD says nothing about the URL it redirected to.
+        if (status in 200..299 || (method == "HEAD" && status == 405)) put(url, connection.url.toString())
         return connection
     }
 }
@@ -206,7 +208,10 @@ class VodProxy(private val credentials: Credentials) {
         requestHeaders.entries.firstOrNull { it.key.equals("Range", ignoreCase = true) }?.let { headers["Range"] = it.value }
 
         return try {
-            val connection = redirects.open(upstreamUrl, headers) { it in 200..299 || it == 416 }
+            // A HEAD (the player page warming a title up) only resolves the panel's slow
+            // redirect for the real request that follows; it never pulls video bytes.
+            val upstreamMethod = if (method == "HEAD") "HEAD" else "GET"
+            val connection = redirects.open(upstreamUrl, headers, upstreamMethod) { it in 200..299 || it == 416 || (upstreamMethod == "HEAD" && it == 405) }
             val status = connection.responseCode
             if (status !in 200..299) {
                 connection.disconnect()

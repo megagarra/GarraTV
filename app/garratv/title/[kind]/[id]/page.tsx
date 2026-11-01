@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronDown, Heart, Play, Star, Video } from 'lucide-react';
+import { Check, ChevronDown, Heart, Play, RotateCcw, Star, Video } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { useData } from '@/app/context/DataContext';
 import { useFavorites } from '@/app/context/FavoritesContext';
@@ -11,6 +11,9 @@ import { useWatchProgress } from '@/app/context/WatchProgressContext';
 import { useT } from '@/app/context/I18nContext';
 import { apiFetch } from '@/app/lib/apiClient';
 import * as db from '@/app/lib/db';
+import { recallDetail, rememberDetail } from '@/app/lib/detailMemo';
+import { warmVod } from '@/app/lib/vodWarmup';
+import { formatClock, minutesLeft, watchState } from '@/app/lib/watchState';
 import type { CachedStream } from '@/app/lib/dbTypes';
 import { formatRating } from '@/app/lib/formatRating';
 import Shell from '@/components/garratv/Shell';
@@ -37,13 +40,15 @@ interface VodInfo {
 
 interface VodPayload {
     info?: VodInfo;
-    movie_data?: { name?: string };
+    movie_data?: { name?: string; container_extension?: string };
 }
 
 interface Episode {
     id: string;
     episode_num?: string | number;
+    season?: string | number;
     title?: string;
+    container_extension?: string;
     info?: { movie_image?: string; plot?: string; duration?: string; duration_secs?: number | string };
 }
 
@@ -51,9 +56,6 @@ interface SeriesPayload {
     info?: VodInfo;
     episodes?: Record<string, Episode[]>;
 }
-
-/** Full details already fetched this session, so going back to a title is instant. */
-const detailMemo = new Map<string, VodPayload | SeriesPayload>();
 
 /** What the catalog row alone can show before the provider's detail arrives. */
 function infoFromStream(row: CachedStream): VodInfo {
@@ -110,6 +112,9 @@ function episodeHref(seriesId: string, episodeId: string): string {
     return `/dashboard/watch/series/${seriesId}?episode=${encodeURIComponent(episodeId)}&autoplay=true`;
 }
 
+/** Same player, ignoring the saved position. */
+const fromStart = (href: string) => `${href}&start=0`;
+
 export default function GarraTVTitlePage() {
     const t = useT();
     const params = useParams<{ kind: string; id: string }>();
@@ -118,13 +123,16 @@ export default function GarraTVTitlePage() {
     const { isAuthenticated } = useAuth();
     const { getCachedDetail, saveCachedDetail } = useData();
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
-    const { getProgress, loadDetail } = useWatchProgress();
+    const { getProgress, loadDetail, progressMap } = useWatchProgress();
     const [info, setInfo] = useState<VodInfo | null>(null);
     const [episodes, setEpisodes] = useState<Record<string, Episode[]>>({});
     const [season, setSeason] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [posterFailed, setPosterFailed] = useState(false);
+    // Container of the movie file, from the catalog row or the detail: enough to warm its URL.
+    const [movieExt, setMovieExt] = useState<string | undefined>(undefined);
+    const warmTimer = useRef(0);
 
     useEffect(() => {
         if (kind && id) loadDetail(kind, id);
@@ -134,12 +142,13 @@ export default function GarraTVTitlePage() {
         if (!kind || !id || !isAuthenticated) return undefined;
         let cancelled = false;
 
-        const memoKey = `${kind}:${id}`;
         let full = false;
         let provisional = false;
 
         const apply = (payload: VodPayload | SeriesPayload) => {
             setInfo(payload.info ?? null);
+            const ext = (payload as VodPayload).movie_data?.container_extension;
+            if (ext) setMovieExt(ext);
             if (kind === 'series') {
                 const seriesEpisodes = (payload as SeriesPayload).episodes ?? {};
                 setEpisodes(seriesEpisodes);
@@ -150,7 +159,7 @@ export default function GarraTVTitlePage() {
 
         const load = async () => {
             setError('');
-            const remembered = detailMemo.get(memoKey);
+            const remembered = recallDetail<VodPayload | SeriesPayload>(kind, id);
             if (remembered) {
                 // Opened before in this session: no request, no loading state.
                 apply(remembered);
@@ -166,6 +175,7 @@ export default function GarraTVTitlePage() {
                     if (cancelled || full || !row) return;
                     provisional = true;
                     setInfo(infoFromStream(row));
+                    if (row.container_extension) setMovieExt(row.container_extension);
                     setLoading(false);
                 })
                 .catch(() => undefined);
@@ -203,11 +213,7 @@ export default function GarraTVTitlePage() {
                 }
 
                 full = true;
-                detailMemo.set(memoKey, payload);
-                if (detailMemo.size > 100) {
-                    const oldest = detailMemo.keys().next().value;
-                    if (oldest !== undefined) detailMemo.delete(oldest);
-                }
+                rememberDetail(kind, id, payload);
                 apply(payload);
             } catch (err) {
                 console.error('[GarraTV] Title details failed', err);
@@ -223,15 +229,42 @@ export default function GarraTVTitlePage() {
         };
     }, [kind, id, isAuthenticated, getCachedDetail, saveCachedDetail, t]);
 
+    // The season list opens where the viewer left off, once per title.
+    const seasonPickedFor = useRef('');
     const seasons = useMemo(
         () => Object.keys(episodes).sort((a, b) => Number(a) - Number(b)),
         [episodes],
     );
 
     useEffect(() => {
+        if (kind !== 'series' || !seasons.length || seasonPickedFor.current === id) return;
+        seasonPickedFor.current = id;
+        const last = progressMap[id];
+        if (!last || last.type !== 'series' || last.episodeId === undefined) return;
+        const found = seasons.find((value) => (episodes[value] ?? []).some((episode) => String(episode.id) === String(last.episodeId)));
+        if (found) setSeason(found);
+    }, [kind, id, seasons, episodes, progressMap]);
+
+    useEffect(() => {
         if (loading) return;
         document.querySelector<HTMLElement>('[data-initial-focus="true"]')?.focus();
     }, [loading]);
+
+    // The provider's slow redirect is resolved while the user reads the synopsis,
+    // so "Watch" opens the CDN directly. Nothing plays on this screen.
+    const firstEpisodeOfSeason = season ? episodes[season]?.[0] : undefined;
+    useEffect(() => {
+        if (loading || !kind) return;
+        if (kind === 'movie') warmVod('movie', id, movieExt);
+        else if (firstEpisodeOfSeason) warmVod('series', firstEpisodeOfSeason.id, firstEpisodeOfSeason.container_extension);
+    }, [loading, kind, id, movieExt, firstEpisodeOfSeason]);
+    useEffect(() => () => window.clearTimeout(warmTimer.current), []);
+
+    // An episode the remote rests on for a moment is probably the next one played.
+    const warmEpisodeSoon = (episode: Episode) => {
+        window.clearTimeout(warmTimer.current);
+        warmTimer.current = window.setTimeout(() => warmVod('series', episode.id, episode.container_extension), 400);
+    };
 
     const backHref = kind === 'series' ? '/garratv/series' : '/garratv/movies';
     const sectionName = t(kind === 'series' ? 'garratv.series' : 'garratv.movies');
@@ -245,6 +278,27 @@ export default function GarraTVTitlePage() {
     }
 
     const seasonEpisodes = season ? (episodes[season] ?? []) : [];
+
+    // Where the viewer stands. Movies: their own progress. Series: the last episode
+    // played (kept under the series id) — continued, or followed by the next one
+    // once it was finished.
+    const movieState = kind === 'movie' ? watchState(getProgress(id)) : null;
+    const seriesResume = (() => {
+        if (kind !== 'series') return null;
+        const last = progressMap[id];
+        if (!last || last.type !== 'series' || last.episodeId === undefined) return null;
+        const ordered = seasons.reduce<{ episode: Episode; season: string }[]>(
+            (list, value) => list.concat((episodes[value] ?? []).map((episode) => ({ episode, season: value }))),
+            [],
+        );
+        const index = ordered.findIndex(({ episode }) => String(episode.id) === String(last.episodeId));
+        if (index === -1) return null;
+        const state = watchState(last);
+        // Not finished, even just opened (the player moves on to the next episode by itself).
+        if (!state.watched) return { ...ordered[index], next: false, started: state.inProgress };
+        if (ordered[index + 1]) return { ...ordered[index + 1], next: true, started: false };
+        return null;
+    })();
     const saved = isFavorite(id, kind);
     const title = info?.name || '';
     const poster = httpUrl(info?.movie_image) || httpUrl(info?.cover);
@@ -257,9 +311,25 @@ export default function GarraTVTitlePage() {
         ? formatRuntime(info?.duration, info?.duration_secs)
         : seasons.length ? t(seasons.length === 1 ? 'garratv.seasonCountOne' : 'garratv.seasonCount', { n: seasons.length }) : '';
     const firstEpisode = seasonEpisodes[0];
+    const resumeEpisode = seriesResume?.episode;
+    const movieHref = `/dashboard/watch/movie/${id}?autoplay=true`;
     const watchHref = kind === 'movie'
-        ? `/dashboard/watch/movie/${id}?autoplay=true`
+        ? (movieState?.watched ? fromStart(movieHref) : movieHref)
+        : resumeEpisode ? episodeHref(id, String(resumeEpisode.id))
         : firstEpisode ? episodeHref(id, String(firstEpisode.id)) : '';
+    const episodeCode = (episode: Episode, seasonValue: string) =>
+        ({ season: episode.season ?? seasonValue, episode: episode.episode_num ?? '?' });
+    const watchLabel = movieState?.inProgress
+        ? t('garratv.resumeAt', { time: formatClock(movieState.position) })
+        : movieState?.watched
+            ? t('garratv.watchAgain')
+            : seriesResume
+                ? t(seriesResume.next ? 'garratv.nextEpisode' : 'garratv.continueEpisode', episodeCode(seriesResume.episode, seriesResume.season))
+                : t('garratv.watch');
+    // A resumed title can still be started over.
+    const startOverHref = movieState?.inProgress
+        ? fromStart(movieHref)
+        : seriesResume?.started ? fromStart(episodeHref(id, String(seriesResume.episode.id))) : '';
 
     const toggleFavorite = () => {
         if (!title) return;
@@ -328,6 +398,23 @@ export default function GarraTVTitlePage() {
                                     </div>
                                 )}
 
+                                {movieState?.inProgress && (
+                                    <div className="mt-5 flex items-center max-w-[420px]">
+                                        <span className="flex-1 h-1 rounded-full bg-[rgba(255,255,255,0.25)] overflow-hidden">
+                                            <span className="block h-full bg-[#E50914]" style={progressWidth(movieState.ratio)} />
+                                        </span>
+                                        <span className="ml-3 text-[13px] text-[#B3B3B3] whitespace-nowrap">
+                                            {t('garratv.minutesLeft', { n: minutesLeft(movieState) })}
+                                        </span>
+                                    </div>
+                                )}
+                                {movieState?.watched && (
+                                    <p className="mt-5 flex items-center text-sm font-bold text-[#81C784]">
+                                        <Check size={16} strokeWidth={3} className="mr-1.5" />
+                                        {t('garratv.watched')}
+                                    </p>
+                                )}
+
                                 <div className="mt-6 flex flex-wrap">
                                     {watchHref && (
                                         <Link
@@ -338,7 +425,18 @@ export default function GarraTVTitlePage() {
                                             className={`${primaryButton} ${display} h-[52px] px-[30px] mr-3 mb-3 flex items-center text-[15px] font-extrabold tracking-[0.08em] uppercase hover:scale-[1.03] focus:scale-[1.03]`}
                                         >
                                             <Play size={20} className="mr-2.5" fill="currentColor" />
-                                            {t('garratv.watch')}
+                                            {watchLabel}
+                                        </Link>
+                                    )}
+                                    {startOverHref && (
+                                        <Link
+                                            href={startOverHref}
+                                            data-focusable="true"
+                                            data-own-focus="true"
+                                            className={`${ghostButton} h-[52px] px-6 mr-3 mb-3 flex items-center text-[15px] hover:scale-[1.03] focus:scale-[1.03]`}
+                                        >
+                                            <RotateCcw size={20} className="mr-2.5" />
+                                            {t('garratv.startOver')}
                                         </Link>
                                     )}
                                     {trailer && (
@@ -393,13 +491,20 @@ export default function GarraTVTitlePage() {
                             {seasonEpisodes.map((episode, index) => {
                                 const episodeTitle = episode.title || t('garratv.episodeLabel', { n: episode.episode_num ?? index + 1 });
                                 const image = httpUrl(episode.info?.movie_image);
-                                const watched = getProgress(episode.id);
-                                const ratio = watched && watched.duration > 0 ? watched.progress / watched.duration : 0;
+                                const state = watchState(getProgress(episode.id));
+                                const ratio = state.inProgress ? state.ratio : 0;
+                                const status = state.watched
+                                    ? t('garratv.watched')
+                                    : state.inProgress
+                                        ? `${t('garratv.stoppedAt', { time: formatClock(state.position) })} · ${t('garratv.minutesLeft', { n: minutesLeft(state) })}`
+                                        : '';
                                 const duration = formatRuntime(episode.info?.duration, episode.info?.duration_secs);
                                 return (
                                     <Link
                                         key={episode.id}
                                         href={episodeHref(id, String(episode.id))}
+                                        onFocus={() => warmEpisodeSoon(episode)}
+                                        onBlur={() => window.clearTimeout(warmTimer.current)}
                                         data-focusable="true"
                                         data-own-focus="true"
                                         className="flex items-center px-4 py-[18px] rounded-lg border-b border-[#222222] outline-none transition-colors duration-200 hover:bg-[#1F1F1F] focus:bg-[#1F1F1F] focus:shadow-[inset_0_0_0_2px_#E50914]"
@@ -430,6 +535,12 @@ export default function GarraTVTitlePage() {
                                                 <span className="text-base font-bold truncate">{episodeTitle}</span>
                                                 {duration && <span className="ml-3 flex-shrink-0 text-[13px] text-[#B3B3B3]">{duration}</span>}
                                             </div>
+                                            {status && (
+                                                <p className={`mt-1 flex items-center text-[13px] font-bold ${state.watched ? 'text-[#81C784]' : 'text-[#E50914]'}`}>
+                                                    {state.watched && <Check size={14} strokeWidth={3} className="mr-1" />}
+                                                    {status}
+                                                </p>
+                                            )}
                                             {episode.info?.plot && (
                                                 <p className="mt-1.5 text-sm leading-normal text-[#B3B3B3] line-clamp-2">{episode.info.plot}</p>
                                             )}

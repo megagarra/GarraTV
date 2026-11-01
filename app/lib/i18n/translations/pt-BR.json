@@ -605,6 +605,16 @@
         "loadingErrorTitle": "Não foi possível carregar o catálogo",
         "loadingRetry": "Tentar de novo",
         "loadingOtherAccount": "Entrar com outra conta",
-        "loadingCategories": "Baixando categoria {done} de {total}"
+        "loadingCategories": "Baixando categoria {done} de {total}",
+        "watched": "Assistido",
+        "inFavorites": "Nos favoritos",
+        "minutesLeft": "Faltam {n} min",
+        "resumeAt": "Continuar de {time}",
+        "continueEpisode": "Continuar T{season}:E{episode}",
+        "nextEpisode": "Próximo: T{season}:E{episode}",
+        "startOver": "Do início",
+        "watchAgain": "Assistir de novo",
+        "stoppedAt": "Parou em {time}",
+        "episodeShort": "T{season}:E{episode}"
     }
 }

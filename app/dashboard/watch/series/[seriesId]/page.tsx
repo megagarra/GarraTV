@@ -13,6 +13,8 @@ import Loader from '@/components/Loader';
 import SubtitleSearchPanel from '@/components/SubtitleSearchPanel';
 import SyncButton from '@/components/SyncButton';
 import { apiFetch, apiUrl } from '@/app/lib/apiClient';
+import { recallDetail, rememberDetail } from '@/app/lib/detailMemo';
+import { vodPath, warmVod } from '@/app/lib/vodWarmup';
 import { formatRating } from '@/app/lib/formatRating';
 import BroadcastStartModal from '@/components/BroadcastStartModal';
 import BroadcastToggle from '@/components/BroadcastToggle';
@@ -96,8 +98,14 @@ const BATCH_LANGUAGES = [
     { code: 'it', label: 'Italiano' },
 ];
 
+/** How close to the end of an episode the next one's URL is warmed. */
+const NEXT_WARM_BEFORE_END_SEC = 90;
+
+const isSeriesInfo = (value: unknown): value is SeriesInfo =>
+    !!value && !!(value as SeriesInfo).info && !!(value as SeriesInfo).episodes;
+
 export default function WatchSeriesPage() {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const { updateProgress, getProgress, loadDetail, isLoaded: progressLoaded, loadingDetails } = useWatchProgress();
     const { getCachedDetail, saveCachedDetail } = useData();
     const { searchTV, isConfigured: tmdbConfigured } = useTMDb();
@@ -113,11 +121,15 @@ export default function WatchSeriesPage() {
     const seriesId = params.seriesId as string;
     const isDetailLoading = loadingDetails[`series-${seriesId}`];
 
-    const [series, setSeries] = useState<SeriesInfo | null>(null);
-    const [loading, setLoading] = useState(true);
+    // Opened right after its title screen: the detail is already in memory.
+    const [series, setSeries] = useState<SeriesInfo | null>(() => {
+        const remembered = recallDetail<SeriesInfo>('series', seriesId);
+        return isSeriesInfo(remembered) ? remembered : null;
+    });
+    const [loading, setLoading] = useState(() => series === null);
     const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [activeSeason, setActiveSeason] = useState<string>("1");
+    const [activeSeason, setActiveSeason] = useState<string>(() => Object.keys(series?.episodes || {})[0] ?? "1");
     const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
     const [showSubtitlePanel, setShowSubtitlePanel] = useState(false);
     const [parentTmdbId, setParentTmdbId] = useState<number | undefined>(undefined);
@@ -151,6 +163,8 @@ export default function WatchSeriesPage() {
     // Opened straight into the player (GarraTV episode list, continue watching):
     // closing it returns to where the user came from instead of this detail screen.
     const [openedToPlay] = useState(() => searchParams.get('autoplay') === 'true');
+    // "From the start" on the title screen: only the episode it was asked for.
+    const [startFromZeroEpisode] = useState(() => (searchParams.get('start') === '0' ? searchParams.get('episode') : null));
     const isJoining = searchParams.get('join') === '1';
     const joinExt = searchParams.get('ext') || undefined;
     const joinPoster = searchParams.get('poster') || undefined;
@@ -186,6 +200,7 @@ export default function WatchSeriesPage() {
 
     // Calculate resumeTime synchronously based on selected episode
     const resumeTime = useMemo(() => {
+        if (selectedEpisode && String(selectedEpisode.id) === startFromZeroEpisode) return 0;
         if (selectedEpisode) {
             const progress = getProgress(selectedEpisode.id);
             if (progress && progress.progress > 10) {
@@ -199,7 +214,7 @@ export default function WatchSeriesPage() {
             }
         }
         return 0;
-    }, [selectedEpisode?.id, getProgress]);
+    }, [selectedEpisode?.id, getProgress, startFromZeroEpisode]);
 
     // The start point is baked into ffmpeg when the broadcast is created, so it is decided
     // once per episode. Leaving it derived from the saved progress would move it while
@@ -221,10 +236,12 @@ export default function WatchSeriesPage() {
         if (!isAuthenticated || !seriesId || isJoining) return;
 
         const loadSeriesInfo = async () => {
+            if (isSeriesInfo(recallDetail('series', seriesId))) return;
             try {
                 // Try cache first
                 const cached = await getCachedDetail<SeriesInfo>('series', seriesId);
                 if (cached && cached.info && cached.episodes) {
+                    rememberDetail('series', seriesId, cached);
                     setSeries(cached);
                     // Set initial season if available
                     const seasons = Object.keys(cached.episodes || {});
@@ -246,9 +263,10 @@ export default function WatchSeriesPage() {
 
                 const data = await res.json();
                 if (data && data.info) {
+                    if (data.episodes) rememberDetail('series', seriesId, data);
                     setSeries(data);
-                    // Lazy cache the detail
-                    await saveCachedDetail('series', seriesId, data);
+                    // Lazy cache the detail; nothing on screen waits for the write.
+                    saveCachedDetail('series', seriesId, data).catch(() => undefined);
 
                     const seasons = Object.keys(data.episodes || {});
                     if (seasons.length > 0) {
@@ -380,8 +398,42 @@ export default function WatchSeriesPage() {
     }, [seriesId, loadDetail]);
 
 
+    // Episodes of every season, in play order.
+    const allEpisodes = useMemo(() => {
+        const list: Episode[] = [];
+        Object.keys(series?.episodes || {})
+            .sort((a, b) => Number(a) - Number(b))
+            .forEach(season => {
+                list.push(...series!.episodes[season]);
+            });
+        return list;
+    }, [series]);
+    const nextEpisode = selectedEpisode
+        ? allEpisodes[allEpisodes.findIndex(e => e.id === selectedEpisode.id) + 1]
+        : undefined;
+
+    // Near the end of an episode the next one's redirect is resolved, so "next" starts
+    // at once. Only on accounts with room for a second connection: on a single-connection
+    // line the panel could drop the episode still playing.
+    const maxConnections = parseInt(user?.max_connections ?? '1', 10);
+    const canWarmAlongside = Number.isFinite(maxConnections) && (maxConnections === 0 || maxConnections >= 2);
+    useEffect(() => {
+        if (!videoEl || !nextEpisode || !canWarmAlongside || isSharing) return;
+        const onTime = () => {
+            const left = videoEl.duration - videoEl.currentTime;
+            if (Number.isFinite(left) && left > 0 && left < NEXT_WARM_BEFORE_END_SEC) {
+                warmVod('series', nextEpisode.id, nextEpisode.container_extension);
+                videoEl.removeEventListener('timeupdate', onTime);
+            }
+        };
+        videoEl.addEventListener('timeupdate', onTime);
+        return () => videoEl.removeEventListener('timeupdate', onTime);
+    }, [videoEl, nextEpisode, canWarmAlongside, isSharing]);
+
     // Auto-play from continue watching
     useEffect(() => {
+        // Clear autoplay search params immediately to prevent loop.
+        const clearAutoplayParams = () => window.history.replaceState(null, '', window.location.pathname);
         if (searchParams.get('autoplay') === 'true' && series && !selectedEpisode) {
             const episodeId = searchParams.get('episode');
             console.log('[Series Auto-play] Looking for episode:', episodeId);
@@ -404,8 +456,7 @@ export default function WatchSeriesPage() {
                 if (foundEpisode && foundSeason) {
                     setActiveSeason(foundSeason);
                     setSelectedEpisode(foundEpisode);
-                    // Clear autoplay search params immediately to prevent loop
-                    router.replace(`/dashboard/watch/series/${seriesId}`);
+                    clearAutoplayParams();
                 } else {
                     console.warn('[Series Auto-play] Episode not found, using first episode of first season');
                     // Fallback: use first episode of first season
@@ -413,7 +464,7 @@ export default function WatchSeriesPage() {
                     if (firstSeason && series.episodes[firstSeason].length > 0) {
                         setActiveSeason(firstSeason);
                         setSelectedEpisode(series.episodes[firstSeason][0]);
-                        router.replace(`/dashboard/watch/series/${seriesId}`);
+                        clearAutoplayParams();
                     }
                 }
             } else {
@@ -423,11 +474,11 @@ export default function WatchSeriesPage() {
                 if (firstSeason && series.episodes[firstSeason].length > 0) {
                     setActiveSeason(firstSeason);
                     setSelectedEpisode(series.episodes[firstSeason][0]);
-                    router.replace(`/dashboard/watch/series/${seriesId}`);
+                    clearAutoplayParams();
                 }
             }
         }
-    }, [searchParams, series, selectedEpisode, router, seriesId]);
+    }, [searchParams, series, selectedEpisode]);
 
     const handleProgress = (currentTime: number, duration: number) => {
         if (!series || !selectedEpisode) return;
@@ -593,7 +644,7 @@ export default function WatchSeriesPage() {
 
     if (selectedEpisode) {
         const extension = selectedEpisode.container_extension;
-        const directUrl = apiUrl(`/api/vod/series/${encodeURIComponent(`${selectedEpisode.id}.${extension}`)}`);
+        const directUrl = apiUrl(vodPath('series', selectedEpisode.id, extension));
         const startSeconds = broadcastStart?.episodeId === selectedEpisode.id
             ? broadcastStart.start
             : resumeTime;
@@ -642,13 +693,6 @@ export default function WatchSeriesPage() {
         const handleCorsFallback = isSharing ? undefined : () => setIsSharing(true);
 
         // Navigation logic
-        const allEpisodes: Episode[] = [];
-        Object.keys(series.episodes)
-            .sort((a, b) => Number(a) - Number(b))
-            .forEach(season => {
-                allEpisodes.push(...series.episodes[season]);
-            });
-
         const currentIndex = allEpisodes.findIndex(e => e.id === selectedEpisode.id);
         const hasNext = currentIndex < allEpisodes.length - 1;
         const hasPrevious = currentIndex > 0;
@@ -740,6 +784,10 @@ export default function WatchSeriesPage() {
 
     const seasons = Object.keys(series.episodes || {}).sort((a, b) => Number(a) - Number(b));
     const currentEpisodes = series.episodes[activeSeason] || [];
+
+    // Opened to play: the episode is picked on the next render. Drawing the details
+    // for that one frame only costs a TV time.
+    if (openedToPlay && allEpisodes.length > 0) return <Loader />;
 
     const availabilityList = Object.values(availability);
     const availableCount = availabilityList.filter(s => s.status === 'available').length;

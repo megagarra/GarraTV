@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react';
 import Link from 'next/link';
-import { Star } from 'lucide-react';
+import { Check, Heart, Star } from 'lucide-react';
 import { formatRating } from '@/app/lib/formatRating';
 import { favoriteTargetProps, type FavoriteType } from '@/app/lib/favoriteTarget';
 import LazyImage from './LazyImage';
@@ -20,17 +20,26 @@ interface PosterTileProps {
     tag?: string;
     /** 0..1 watched ratio, drawn along the bottom edge. */
     progress?: number;
+    /** Finished: a check replaces the progress bar. */
+    watched?: boolean;
+    /** Saved in the profile's favorites: a heart in the corner. */
+    favorite?: boolean;
+    /** Accessible names for the two marks above (already translated). */
+    watchedLabel?: string;
+    favoriteLabel?: string;
+    /** Replaces the year · genre line, e.g. "S2:E3 · 12 min left". */
+    caption?: string;
     initialFocus?: boolean;
     /** Makes holding OK on the tile toggle this favorite (components/RemoteFavorites.tsx). */
     favoriteType?: FavoriteType;
     favoriteId?: string | number;
 }
 
-function PosterTile({ href, title, image, year, genre, rating, tag, progress, initialFocus, favoriteType, favoriteId }: PosterTileProps) {
+function PosterTile({ href, title, image, year, genre, rating, tag, progress, watched, favorite, watchedLabel, favoriteLabel, caption, initialFocus, favoriteType, favoriteId }: PosterTileProps) {
     const [failed, setFailed] = useState(false);
     const score = formatRating(rating);
     const showImage = Boolean(image) && !failed;
-    const meta = [year ? String(year) : '', genre ? genre.split(/[,/]/)[0].trim() : ''].filter(Boolean).join(' · ');
+    const meta = caption ?? [year ? String(year) : '', genre ? genre.split(/[,/]/)[0].trim() : ''].filter(Boolean).join(' · ');
 
     return (
         <div className="min-w-0">
@@ -72,7 +81,23 @@ function PosterTile({ href, title, image, year, genre, rating, tag, progress, in
                                 {tag}
                             </span>
                         )}
-                        {progress !== undefined && progress > 0 && (
+                        {(favorite || watched) && (
+                            // Top-left, under the corner tag when there is one: the bottom
+                            // holds the title on posters without a picture.
+                            <span className={`absolute left-2 ${tag ? 'top-[36px]' : 'top-2'} flex`}>
+                                {favorite && (
+                                    <span title={favoriteLabel} className="w-[26px] h-[26px] mr-1.5 flex items-center justify-center rounded-full bg-[rgba(0,0,0,0.72)]">
+                                        <Heart size={14} className="text-[#E50914]" fill="currentColor" strokeWidth={0} />
+                                    </span>
+                                )}
+                                {watched && (
+                                    <span title={watchedLabel} className="w-[26px] h-[26px] flex items-center justify-center rounded-full bg-[#2E7D32]">
+                                        <Check size={15} strokeWidth={3} />
+                                    </span>
+                                )}
+                            </span>
+                        )}
+                        {!watched && progress !== undefined && progress > 0 && (
                             <span className="absolute left-0 right-0 bottom-0 h-[3px] bg-[rgba(255,255,255,0.25)]">
                                 <span className="block h-full bg-[#E50914]" style={progressWidth(progress)} />
                             </span>

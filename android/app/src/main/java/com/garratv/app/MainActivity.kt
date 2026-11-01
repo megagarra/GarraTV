@@ -48,7 +48,8 @@ class MainActivity : Activity() {
 
         val storage = File(filesDir, "vfs")
         val dataDir = File(storage, "app/data")
-        val handler = AppRequestHandler(assets, Credentials(File(dataDir, "config.json")), File(dataDir, "free-channels"))
+        val credentials = Credentials(File(dataDir, "config.json"))
+        val handler = AppRequestHandler(assets, credentials, File(dataDir, "free-channels"))
 
         webView = WebView(this)
         webView.setBackgroundColor(0xFF000000.toInt())
@@ -112,7 +113,10 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
         }
-        if (savedInstanceState == null) webView.loadUrl("${AppRequestHandler.ORIGIN}/garratv/")
+        // With an account saved, open the home screen itself: the sign-in page would only
+        // load its own code, check the account and redirect there anyway.
+        val entry = if (credentials.current() != null) "/garratv/home/" else "/garratv/"
+        if (savedInstanceState == null) webView.loadUrl("${AppRequestHandler.ORIGIN}$entry")
         else webView.restoreState(savedInstanceState)
     }
 

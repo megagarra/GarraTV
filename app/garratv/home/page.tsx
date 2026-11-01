@@ -16,6 +16,7 @@ import Shell from '@/components/garratv/Shell';
 import PosterTile from '@/components/garratv/PosterTile';
 import { formatEpgTime } from '@/components/garratv/epg';
 import { sizedImage } from '@/components/garratv/images';
+import { minutesLeft, watchState } from '@/app/lib/watchState';
 import { display, focusCard, focusShortcut, primaryButton } from '@/components/garratv/styles';
 
 // oklch() tints from the design, pre-converted: Chrome 53 has no oklch().
@@ -299,12 +300,13 @@ export default function GarraTVHomePage() {
     const android = useIsAndroidApp();
     const { locale } = useI18n();
     const { isSyncing, lastSync, syncData } = useData();
-    const { favorites } = useFavorites();
+    const { favorites, isFavorite } = useFavorites();
     const { isAuthenticated } = useAuth();
     const { progressMap } = useWatchProgress();
     const [counts, setCounts] = useState<{ live: number; movie: number; series: number } | null>(null);
     const [images, setImages] = useState<{ live?: string; movie?: string; series?: string }>({});
-    const [spotlight, setSpotlight] = useState<db.Spotlight | null>(null);
+    // Filled card by card: the live picks probe the EPG and may take far longer.
+    const [spotlight, setSpotlight] = useState<Partial<Record<db.SpotlightKind, db.SpotlightItem[]>>>({});
     const [revealTimedOut, setRevealTimedOut] = useState(false);
 
     // Highlights normally answer at once (server-side stale-while-revalidate);
@@ -319,8 +321,10 @@ export default function GarraTVHomePage() {
         if (!isAuthenticated) return undefined;
         let cancelled = false;
         const load = () => {
-            db.getSpotlight(locale).then((result) => {
-                if (!cancelled && result) setSpotlight(result);
+            (['movie', 'series', 'live'] as const).forEach((kind) => {
+                db.getSpotlightPart(locale, kind).then((items) => {
+                    if (!cancelled && items) setSpotlight((current) => ({ ...current, [kind]: items }));
+                });
             });
         };
         load();
@@ -362,7 +366,8 @@ export default function GarraTVHomePage() {
         if (item?.poster) return sizedImage(item.poster, 'posterLarge');
         return sizedImage(fallback, 'backdrop');
     };
-    const dataReady = counts !== null && (spotlight !== null || revealTimedOut);
+    const spotlightReady = !!(spotlight.live && spotlight.movie && spotlight.series);
+    const dataReady = counts !== null && (spotlightReady || revealTimedOut);
     const picturesReady = useImagesReady([
         firstPicture(spotlight?.live, images.live),
         firstPicture(spotlight?.movie, images.movie),
@@ -380,6 +385,16 @@ export default function GarraTVHomePage() {
         .filter((item) => item && item.name)
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, 12);
+
+    // "S2:E3 · 12 min left": where the title stopped, at a glance.
+    const continueCaption = (item: (typeof continueItems)[number]) => {
+        const state = watchState(item);
+        const episode = item.type === 'series' && item.seasonNum && item.episodeNum
+            ? t('garratv.episodeShort', { season: item.seasonNum, episode: item.episodeNum })
+            : '';
+        const left = state.remaining > 0 ? t('garratv.minutesLeft', { n: minutesLeft(state) }) : '';
+        return [episode, left].filter(Boolean).join(' · ') || undefined;
+    };
 
     const fmt = (value: number | undefined) => (value === undefined ? '…' : value.toLocaleString(locale));
     const liveFavorites = favorites.filter((item) => item.type === 'live').length;
@@ -429,7 +444,7 @@ export default function GarraTVHomePage() {
                         href="/garratv/live"
                         title={t('garratv.liveTv')}
                         subtitle={t('garratv.liveSummary', { channels: fmt(counts?.live), favorites: fmt(liveFavorites) })}
-                        spotlight={spotlight ? spotlight.live : []}
+                        spotlight={spotlight.live ?? []}
                         fallbackImage={images.live}
                         tint={TINT.live}
                         icon={Tv}
@@ -442,7 +457,7 @@ export default function GarraTVHomePage() {
                             href="/garratv/movies"
                             title={t('garratv.movies')}
                             subtitle={t('garratv.moviesSummary', { n: fmt(counts?.movie) })}
-                            spotlight={spotlight ? spotlight.movie : []}
+                            spotlight={spotlight.movie ?? []}
                             fallbackImage={images.movie}
                             tint={TINT.movie}
                             icon={Film}
@@ -452,7 +467,7 @@ export default function GarraTVHomePage() {
                             href="/garratv/series"
                             title={t('garratv.series')}
                             subtitle={t('garratv.seriesSummary', { n: fmt(counts?.series) })}
-                            spotlight={spotlight ? spotlight.series : []}
+                            spotlight={spotlight.series ?? []}
                             fallbackImage={images.series}
                             tint={TINT.series}
                             icon={Clapperboard}
@@ -491,6 +506,9 @@ export default function GarraTVHomePage() {
                                     title={item.name}
                                     image={item.image}
                                     progress={item.duration > 0 ? item.progress / item.duration : undefined}
+                                    caption={continueCaption(item)}
+                                    favorite={isFavorite(item.type === 'series' && item.seriesId ? item.seriesId : item.streamId, item.type)}
+                                    favoriteLabel={t('garratv.inFavorites')}
                                     favoriteType={item.type === 'series' ? 'series' : 'movie'}
                                     favoriteId={item.type === 'series' && item.seriesId ? item.seriesId : item.streamId}
                                 />

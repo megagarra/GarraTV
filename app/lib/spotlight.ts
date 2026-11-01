@@ -139,6 +139,31 @@ const cache = new Map<string, CachedEntry>();
 
 const settled = new Map<string, SpotlightItem[]>();
 
+// The last picks also live in the SQLite cache: a restarted server (and the Android
+// app, whose backend starts with every launch) answers the home screen at once
+// instead of waiting ~20 one-at-a-time EPG probes.
+const PERSIST_PREFIX = 'spotlight:';
+
+/** A live pick whose programme already ended is no longer "on now". */
+function stillCurrent(items: SpotlightItem[]): SpotlightItem[] {
+    const nowSec = Math.floor(Date.now() / 1000);
+    return items.filter((item) => !item.end || item.end > nowSec);
+}
+
+function lastSettled(key: string): SpotlightItem[] | undefined {
+    const inMemory = settled.get(key);
+    if (inMemory) return stillCurrent(inMemory);
+    try {
+        const stored = sqlite.getTMDbCache(PERSIST_PREFIX + key)?.data;
+        if (!Array.isArray(stored)) return undefined;
+        const items = stored as SpotlightItem[];
+        settled.set(key, items);
+        return stillCurrent(items);
+    } catch {
+        return undefined;
+    }
+}
+
 /**
  * Stale-while-revalidate: once a key has been built, an expired entry still
  * answers immediately with the last result while the rebuild runs in the
@@ -147,18 +172,23 @@ const settled = new Map<string, SpotlightItem[]>();
 function cached(key: string, ttl: number, load: () => Promise<SpotlightItem[]>): Promise<SpotlightItem[]> {
     const hit = cache.get(key);
     if (hit && Date.now() - hit.at < ttl) return hit.value;
+    const stale = lastSettled(key);
     const value = load()
         .then((items) => {
             settled.set(key, items);
+            try {
+                sqlite.saveTMDbCache(PERSIST_PREFIX + key, items);
+            } catch (error) {
+                console.error('[Spotlight] Failed to persist', key, error);
+            }
             return items;
         })
         .catch((error: unknown) => {
             console.error('[Spotlight] Failed to build', key, error);
             cache.delete(key);
-            return settled.get(key) ?? [] as SpotlightItem[];
+            return lastSettled(key) ?? [] as SpotlightItem[];
         });
     cache.set(key, { at: Date.now(), value });
-    const stale = settled.get(key);
     return stale ? Promise.resolve(stale) : value;
 }
 
@@ -630,13 +660,21 @@ async function buildVod(type: 'movie' | 'series', language: string, creds: Spotl
     return hot.concat(await newest(type, seen, MAX_ITEMS - hot.length, creds)).slice(0, MAX_ITEMS);
 }
 
-export async function getSpotlight(language: string): Promise<Spotlight> {
+export type SpotlightKind = 'live' | 'movie' | 'series';
+
+/** One card's picks. The live ones probe the EPG channel by channel, so the home asks for each card on its own. */
+export async function getSpotlightPart(language: string, kind: SpotlightKind): Promise<SpotlightItem[]> {
     const creds = await readCredentials();
     const account = creds ? `${creds.hostUrl}|${creds.username}` : 'none';
+    if (kind === 'live') return cached(`live:${language}:${account}`, LIVE_TTL_MS, () => buildLive(language, creds));
+    return cached(`${kind}:${language}:${account}`, VOD_TTL_MS, () => buildVod(kind, language, creds));
+}
+
+export async function getSpotlight(language: string): Promise<Spotlight> {
     const [live, movie, series] = await Promise.all([
-        cached(`live:${language}:${account}`, LIVE_TTL_MS, () => buildLive(language, creds)),
-        cached(`movie:${language}:${account}`, VOD_TTL_MS, () => buildVod('movie', language, creds)),
-        cached(`series:${language}:${account}`, VOD_TTL_MS, () => buildVod('series', language, creds)),
+        getSpotlightPart(language, 'live'),
+        getSpotlightPart(language, 'movie'),
+        getSpotlightPart(language, 'series'),
     ]);
     return { live, movie, series, generatedAt: Date.now() };
 }

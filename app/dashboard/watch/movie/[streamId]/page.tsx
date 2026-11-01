@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import { useWatchProgress } from '@/app/context/WatchProgressContext';
@@ -12,6 +12,10 @@ import Loader from '@/components/Loader';
 import SubtitleSearchPanel from '@/components/SubtitleSearchPanel';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import { apiFetch, apiUrl } from '@/app/lib/apiClient';
+import * as db from '@/app/lib/db';
+import type { CachedStream } from '@/app/lib/dbTypes';
+import { recallDetail, rememberDetail } from '@/app/lib/detailMemo';
+import { vodPath } from '@/app/lib/vodWarmup';
 import { formatRating } from '@/app/lib/formatRating';
 import BroadcastStartModal from '@/components/BroadcastStartModal';
 import BroadcastToggle from '@/components/BroadcastToggle';
@@ -50,6 +54,30 @@ import { useData } from '@/app/context/DataContext';
 import { useTMDb } from '@/app/context/TMDbContext';
 import { useSubtitle } from '@/app/context/SubtitleContext';
 
+const isMovieInfo = (value: unknown): value is MovieInfo =>
+    !!value && !!(value as MovieInfo).info && !!(value as MovieInfo).movie_data;
+
+/** Enough to start playing from the catalog row alone, before the provider's detail arrives. */
+function movieFromStream(row: CachedStream): MovieInfo | null {
+    if (!row.container_extension) return null;
+    return {
+        info: {
+            movie_image: row.cover || row.icon || '',
+            name: row.name,
+            plot: row.plot || '',
+            director: row.director || '',
+            releasedate: row.release_date || '',
+            rating: row.rating || '',
+            duration: '',
+            genre: row.genre || '',
+        },
+        movie_data: { stream_id: Number(row.id), container_extension: row.container_extension, name: row.name },
+    };
+}
+
+/** A limit check this recent is still good when "Watch" is pressed. */
+const LIMIT_CHECK_FRESH_MS = 30_000;
+
 export default function WatchMoviePage() {
     const { isAuthenticated } = useAuth();
     const { updateProgress, getProgress, isLoaded: progressLoaded, loadingDetails } = useWatchProgress();
@@ -62,8 +90,12 @@ export default function WatchMoviePage() {
     const streamId = params.streamId as string;
     const isDetailLoading = loadingDetails[`movie-${streamId}`];
 
-    const [movie, setMovie] = useState<MovieInfo | null>(null);
-    const [loading, setLoading] = useState(true);
+    // Opened right after its title screen: the detail is already in memory.
+    const [movie, setMovie] = useState<MovieInfo | null>(() => {
+        const remembered = recallDetail<MovieInfo>('movie', streamId);
+        return isMovieInfo(remembered) ? remembered : null;
+    });
+    const [loading, setLoading] = useState(() => movie === null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [subtitleUrl, setSubtitleUrl] = useState<string | null>(null);
@@ -81,6 +113,8 @@ export default function WatchMoviePage() {
     // Opened straight into the player (GarraTV "Assistir", continue watching):
     // closing it returns to where the user came from instead of this detail screen.
     const [openedToPlay] = useState(() => searchParams.get('autoplay') === 'true');
+    // "From the start" on the title screen: the saved position is ignored once.
+    const [startFromZero] = useState(() => searchParams.get('start') === '0');
     const isJoining = searchParams.get('join') === '1';
     const joinExt = searchParams.get('ext') || undefined;
     const joinPoster = searchParams.get('poster') || undefined;
@@ -115,7 +149,7 @@ export default function WatchMoviePage() {
 
     // Calculate resumeTime synchronously based on progressLoaded
     const resumeTime = useMemo(() => {
-        if (!progressLoaded) return 0;
+        if (!progressLoaded || startFromZero) return 0;
         const progress = getProgress(streamId);
         if (progress && progress.progress > 10) {
             // Check if progress is near the end (more than 95%)
@@ -126,7 +160,7 @@ export default function WatchMoviePage() {
             return progress.progress;
         }
         return 0;
-    }, [streamId, getProgress, progressLoaded]);
+    }, [streamId, getProgress, progressLoaded, startFromZero]);
 
     // The start point is baked into ffmpeg when the broadcast is created, so it is decided
     // once. Leaving it derived from the saved progress would move it while broadcasting
@@ -141,13 +175,31 @@ export default function WatchMoviePage() {
         if (!isAuthenticated || !streamId || isJoining) return;
 
         const loadMovieInfo = async () => {
+            if (isMovieInfo(recallDetail('movie', streamId))) return;
+            let settled = false;
+            let provisionalShown = false;
             try {
                 // Try cache first
                 const cached = await getCachedDetail<MovieInfo>('movie', streamId);
                 if (cached && cached.info && cached.movie_data) {
+                    rememberDetail('movie', streamId, cached);
                     setMovie(cached);
                     setLoading(false);
                     return;
+                }
+
+                // The provider's detail is a slow round-trip. When the player opens
+                // straight away, the catalog row already says which file to request.
+                if (openedToPlay) {
+                    db.getStreamsByIds([streamId], 'movie')
+                        .then(([row]) => {
+                            const provisional = row && movieFromStream(row);
+                            if (settled || !provisional) return;
+                            provisionalShown = true;
+                            setMovie((current) => current ?? provisional);
+                            setLoading(false);
+                        })
+                        .catch(() => undefined);
                 }
 
                 const res = await apiFetch('/api/proxy', {
@@ -161,22 +213,29 @@ export default function WatchMoviePage() {
 
                 const data = await res.json();
                 if (data && data.info && data.movie_data) {
-                    setMovie(data);
-                    // Lazy cache the detail
-                    await saveCachedDetail('movie', streamId, data);
-                } else {
+                    rememberDetail('movie', streamId, data);
+                    // A provisional entry already playing keeps its container: changing it
+                    // would swap the player's source mid-start.
+                    setMovie((current) => current && current.movie_data.container_extension !== data.movie_data.container_extension
+                        ? { ...data, movie_data: { ...data.movie_data, container_extension: current.movie_data.container_extension } }
+                        : data);
+                    // Lazy cache the detail; nothing on screen waits for the write.
+                    saveCachedDetail('movie', streamId, data).catch(() => undefined);
+                } else if (!provisionalShown) {
                     setError(t('watch.movieDetailsNotFound'));
                 }
             } catch (err) {
                 console.error(err);
-                setError(t('watch.movieDetailsError'));
+                // Playback already started from the catalog row; only the extras are missing.
+                if (!provisionalShown) setError(t('watch.movieDetailsError'));
             } finally {
+                settled = true;
                 setLoading(false);
             }
         };
 
         loadMovieInfo();
-    }, [isAuthenticated, streamId, isJoining, getCachedDetail, saveCachedDetail, t]);
+    }, [isAuthenticated, streamId, isJoining, openedToPlay, getCachedDetail, saveCachedDetail, t]);
 
     // Resolve TMDB ID for better subtitle matching
     useEffect(() => {
@@ -215,15 +274,28 @@ export default function WatchMoviePage() {
     useEffect(() => {
         if (searchParams.get('autoplay') === 'true' && movie && !isPlaying && progressLoaded) {
             setIsPlaying(true);
-            // Clear autoplay search params immediately to prevent loop
-            router.replace(`/dashboard/watch/movie/${streamId}`);
+            // Clear autoplay search params immediately to prevent loop. The History API
+            // (synced by the App Router) skips a router round-trip while the video starts.
+            window.history.replaceState(null, '', window.location.pathname);
         }
-    }, [searchParams, movie, progressLoaded, isPlaying, router, streamId]);
+    }, [searchParams, movie, progressLoaded, isPlaying]);
+
+    // The limit is asked as soon as the details are up, so "Watch" rarely waits for it.
+    // It cannot run alongside playback: the panel would count our own new connection.
+    const limitCheck = useRef<{ at: number; result: Promise<boolean> } | null>(null);
+    const showingDetails = !!movie && !isPlaying && !isJoining && !openedToPlay;
+    useEffect(() => {
+        if (showingDetails) limitCheck.current = { at: Date.now(), result: checkConnectionLimit() };
+    }, [showingDetails, checkConnectionLimit]);
 
     const handlePlay = async () => {
         // Movie/series have no relay yet (VOD requires ffmpeg); when exhausted, we offer
         // joining a live broadcast instead of failing playback.
-        if (await checkConnectionLimit()) {
+        const recent = limitCheck.current && Date.now() - limitCheck.current.at < LIMIT_CHECK_FRESH_MS
+            ? limitCheck.current.result
+            : checkConnectionLimit();
+        limitCheck.current = null;
+        if (await recent) {
             setShowLimitModal(true);
             return;
         }
@@ -307,7 +379,7 @@ export default function WatchMoviePage() {
 
     if (isPlaying) {
         const extension = movie.movie_data.container_extension;
-        const directUrl = apiUrl(`/api/vod/movie/${encodeURIComponent(`${streamId}.${extension}`)}`);
+        const directUrl = apiUrl(vodPath('movie', streamId, extension));
         const startSeconds = broadcastStart ?? resumeTime;
         // Only the provider's own length is trustworthy here; the relay stream carries
         // just a sliding window, so without this the bar would measure the window.
@@ -398,6 +470,10 @@ export default function WatchMoviePage() {
             </div>
         );
     }
+
+    // Opened to play: the player takes over on the next render. Drawing the details
+    // (blurred backdrop and all) for that one frame only costs a TV time.
+    if (openedToPlay) return <Loader />;
 
     // Details View
     const hasProgress = resumeTime > 0;
