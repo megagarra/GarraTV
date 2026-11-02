@@ -7,7 +7,6 @@ import LanguageSection from '@/components/settings/LanguageSection';
 import ProfilesSection from '@/components/settings/ProfilesSection';
 import SubtitlesSection from '@/components/settings/SubtitlesSection';
 import TmdbSection from '@/components/settings/TmdbSection';
-import FreeTierSection from '@/components/settings/FreeTierSection';
 import TvModeSection from '@/components/settings/TvModeSection';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import { useIsAndroidApp } from '@/app/hooks/useIsAndroidApp';
@@ -32,7 +31,6 @@ export default function SettingsPage() {
                 <section id="legendas" className={CARD}><SubtitlesSection /></section>
                 <section className={CARD}><TmdbSection /></section>
                 {!android && <section className={CARD}><TvModeSection /></section>}
-                <section className={CARD}><FreeTierSection /></section>
                 <section className={CARD}><DiagnosticsSection /></section>
             </div>
         </div>

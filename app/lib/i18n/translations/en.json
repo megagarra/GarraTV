@@ -256,23 +256,6 @@
             "description": "Choose the interface language. Subtitles have their own setting.",
             "label": "Interface language",
             "system": "Automatic (system language)"
-        },
-        "freeTier": {
-            "title": "Free channels",
-            "description": "Public channels (iptv-org) shown to visitors without an Xtream Codes account, plus the contact to unlock everything.",
-            "contactLabel": "Contact to unlock access",
-            "contactLabelHint": "Shown to visitors. E.g. an email or WhatsApp.",
-            "contactLabelPlaceholder": "contact@example.com",
-            "contactUrl": "Contact link (optional)",
-            "contactUrlHint": "Becomes the \"Contact us\" button. Accepts mailto:, https:// or tel:",
-            "refresh": "Refresh list",
-            "saved": "Settings saved.",
-            "saveFailed": "Couldn't save.",
-            "refreshed": "List refreshed: {n} channels.",
-            "refreshFailed": "Couldn't refresh the list.",
-            "sessionRequired": "Sign in to the account to change this setting.",
-            "defaultCountry": "Default country",
-            "defaultCountryHint": "Used when the visitor's country has no list. Each visitor can change country on the free channels screen."
         }
     },
     "profiles": {

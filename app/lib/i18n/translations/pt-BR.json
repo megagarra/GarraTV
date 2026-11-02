@@ -256,23 +256,6 @@
             "description": "Escolha o idioma da interface. As legendas têm sua própria configuração.",
             "label": "Idioma da interface",
             "system": "Automático (idioma do sistema)"
-        },
-        "freeTier": {
-            "title": "Canais grátis",
-            "description": "Canais públicos (iptv-org) exibidos para quem ainda não tem usuário Xtream Codes, e o contato para liberar tudo.",
-            "contactLabel": "Contato para liberar acesso",
-            "contactLabelHint": "Aparece para os visitantes. Ex.: um e-mail ou WhatsApp.",
-            "contactLabelPlaceholder": "contato@exemplo.com",
-            "contactUrl": "Link do contato (opcional)",
-            "contactUrlHint": "Vira o botão \"Falar com a gente\". Aceita mailto:, https:// ou tel:",
-            "refresh": "Atualizar lista",
-            "saved": "Configuração salva.",
-            "saveFailed": "Não foi possível salvar.",
-            "refreshed": "Lista atualizada: {n} canais.",
-            "refreshFailed": "Não foi possível atualizar a lista.",
-            "sessionRequired": "Entre com a conta para alterar esta configuração.",
-            "defaultCountry": "País padrão",
-            "defaultCountryHint": "Usado quando o país do visitante não tem lista. Cada visitante pode trocar o país na tela de canais grátis."
         }
     },
     "profiles": {

@@ -29,14 +29,6 @@ export interface FreeCountry {
 
 const COUNTRY_STORAGE_KEY = 'garratv_free_country';
 
-/** A failed owner action; `status` 401 means this browser is not signed in to the account. */
-export class FreeTierRequestError extends Error {
-    constructor(message: string, readonly status: number) {
-        super(message);
-        this.name = 'FreeTierRequestError';
-    }
-}
-
 export async function fetchFreeChannels(country?: string): Promise<FreeChannelList> {
     const query = country ? `?country=${encodeURIComponent(country)}` : '';
     const response = await apiFetch(`/api/free-channels${query}`);
@@ -51,29 +43,6 @@ export async function fetchFreeCountries(): Promise<{ countries: FreeCountry[]; 
     const payload = await response.json() as { data?: { countries: FreeCountry[]; defaultCountry: string }; error?: string };
     if (!response.ok || !payload.data) throw new Error(payload.error || 'countries');
     return payload.data;
-}
-
-export async function saveFreeTierConfig(config: { defaultCountry: string; contactLabel: string; contactUrl: string }): Promise<void> {
-    const response = await apiFetch('/api/free-channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'saveConfig', ...config }),
-    });
-    if (!response.ok) {
-        const payload = await response.json().catch(() => ({})) as { error?: string };
-        throw new FreeTierRequestError(payload.error || 'save', response.status);
-    }
-}
-
-export async function refreshFreeChannels(country: string): Promise<number> {
-    const response = await apiFetch('/api/free-channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'refresh', country }),
-    });
-    const payload = await response.json().catch(() => ({})) as { data?: { count: number }; error?: string };
-    if (!response.ok || !payload.data) throw new FreeTierRequestError(payload.error || 'refresh', response.status);
-    return payload.data.count;
 }
 
 /** Relay URL for a free channel; the server maps the id to the stream. */
