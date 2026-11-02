@@ -14,6 +14,8 @@ Idioma: **código e comentários sempre em inglês**; **textos de UI via i18n** 
 
 `main` = estável (só recebe `release/*` e `hotfix/*`, cada lançamento com tag `vX.Y.Z`); `dev` = integração. Trabalho novo sai da `dev` em `feature/<nome>` ou `fix/<nome>` e volta por PR para a `dev`. Nunca commite direto na `main`. Detalhes: `docs/branching.md`.
 
+**Sempre versione:** ao concluir qualquer mudança, rode `/versionar`. Ele cria a branch, faz os commits por assunto, o merge na `dev` e o push.
+
 ## Comandos
 
 - `npm run dev` — servidor de desenvolvimento (http://localhost:3000).
