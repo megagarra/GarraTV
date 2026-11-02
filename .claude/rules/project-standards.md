@@ -63,3 +63,13 @@ Ao adicionar uma capacidade: crie/estenda a lib server-only, exponha via API rou
 ## Antes de commitar
 
 Rode `/build-check` (lint + `npm run build` completo).
+
+## Versionamento (sempre)
+
+Todo trabalho concluído que alterou arquivos termina versionado e no GitHub, sem esperar o usuário pedir. Siga a skill `/versionar`:
+- branch `feature/*` ou `fix/*` a partir da `dev`;
+- um commit por assunto;
+- merge `--no-ff` na `dev`;
+- push da `dev` e da branch.
+
+Nunca commite direto na `main` nem na `dev`. Só deixe o push para depois se o usuário disser para não enviar.
