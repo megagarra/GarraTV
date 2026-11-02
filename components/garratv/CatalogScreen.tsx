@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { useI18n, useT } from '@/app/context/I18nContext';
 import { useFavorites } from '@/app/context/FavoritesContext';
 import { useWatchProgress } from '@/app/context/WatchProgressContext';
@@ -8,6 +8,7 @@ import { watchState } from '@/app/lib/watchState';
 import type { ContentType } from '@/app/lib/dbTypes';
 import type { SortOption } from '@/app/lib/catalogSort';
 import { createLingerPrefetch } from '@/app/lib/detailPrefetch';
+import { itemIdFromEvent, recallScreen, rememberScreen, restoreFocus } from '@/app/lib/screenMemory';
 import { useWindowedRows } from '@/app/hooks/useWindowedRows';
 import { useSortPreference } from '@/app/hooks/useSortPreference';
 import Shell from '@/components/garratv/Shell';
@@ -22,8 +23,11 @@ const SORTS: SortOption[] = ['name-asc', 'added', 'rating'];
 export default function CatalogScreen({ type }: { type: Extract<ContentType, 'movie' | 'series'> }) {
     const t = useT();
     const { locale } = useI18n();
-    const [filter, setFilter] = useState(FILTER_ALL);
-    const [query, setQuery] = useState('');
+    // Back from a title returns to the same category, search, scroll and poster.
+    const memoryKey = `catalog:${type}`;
+    const [saved] = useState(() => recallScreen(memoryKey));
+    const [filter, setFilter] = useState(saved?.filter ?? FILTER_ALL);
+    const [query, setQuery] = useState(saved?.query ?? '');
     const [storedSort, setSort] = useSortPreference(`garratv_${type}`, 'name-asc');
     const sort = SORTS.indexOf(storedSort) === -1 ? 'name-asc' : storedSort;
     const data = useCatalogData(type, filter, query, sort);
@@ -49,12 +53,29 @@ export default function CatalogScreen({ type }: { type: Extract<ContentType, 'mo
 
     const changeSort = (option: SortOption) => setSort(option);
 
+    useEffect(() => {
+        // Another category or search: the remembered poster belongs to the old list.
+        const changed = filter !== (saved?.filter ?? FILTER_ALL) || query !== (saved?.query ?? '');
+        rememberScreen(memoryKey, changed ? { filter, query, focusId: null } : { filter, query });
+    }, [memoryKey, filter, query, saved]);
+
     const focusedOnce = useRef(false);
     useEffect(() => {
-        if (data.loading || focusedOnce.current) return;
+        if (data.loading || focusedOnce.current) return undefined;
         focusedOnce.current = true;
-        document.querySelector<HTMLElement>('[data-initial-focus="true"]')?.focus();
-    }, [data.loading]);
+        const focusFirst = () => document.querySelector<HTMLElement>('[data-initial-focus="true"]')?.focus();
+        if (!saved?.focusId) {
+            focusFirst();
+            return undefined;
+        }
+        return restoreFocus({ scroller: scrollRef.current, scrollTop: saved.scrollTop ?? 0, itemId: saved.focusId, fallback: focusFirst });
+    }, [data.loading, saved]);
+
+    const onGridFocus = (event: FocusEvent) => {
+        linger.onFocus(event);
+        const focusId = itemIdFromEvent(event);
+        if (focusId) rememberScreen(memoryKey, { focusId });
+    };
 
     const sectionName = t(type === 'movie' ? 'garratv.movies' : 'garratv.series');
     const categoryName = data.categories.find((category) => category.category_id === filter)?.category_name;
@@ -111,7 +132,7 @@ export default function CatalogScreen({ type }: { type: Extract<ContentType, 'mo
                     favoriteCount={data.favoriteCount}
                     variant="vod"
                 />
-                <section ref={scrollRef} className="md:flex-[80_1_0%] min-w-0 md:h-full md:overflow-y-auto overflow-x-hidden px-4 pt-5 pb-12 md:px-9 md:pt-7 phone:flex-1 phone:min-h-0 phone:h-auto phone:overflow-y-auto phone:px-4 phone:pt-3 phone:pb-6">
+                <section ref={scrollRef} onScroll={(event) => rememberScreen(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="md:flex-[80_1_0%] min-w-0 md:h-full md:overflow-y-auto overflow-x-hidden px-4 pt-5 pb-12 md:px-9 md:pt-7 phone:flex-1 phone:min-h-0 phone:h-auto phone:overflow-y-auto phone:px-4 phone:pt-3 phone:pb-6">
                     <div className="flex flex-wrap items-center justify-between mb-7 short:mb-4 phone:mb-1">
                         <div className="flex items-baseline min-w-0 mr-4 mb-2">
                             <h1 className={`${display} text-[28px] short:text-2xl phone:text-xl font-extrabold truncate`}>{heading}</h1>
@@ -145,7 +166,7 @@ export default function CatalogScreen({ type }: { type: Extract<ContentType, 'mo
                         <p className="py-16 text-center text-sm text-[#B3B3B3]">{t('garratv.noTitles')}</p>
                     ) : (
                         // Flex-wrap columns instead of CSS grid: grid needs Chrome 57.
-                        <div ref={gridRef} onFocus={linger.onFocus} className="flex flex-wrap -mx-2.5 phone:-mx-1.5">
+                        <div ref={gridRef} onFocus={onGridFocus} className="flex flex-wrap -mx-2.5 phone:-mx-1.5">
                             {topSpace > 0 && <div className="w-full" style={{ height: topSpace }} />}
                             {visibleItems.map((item, index) => {
                                 // Series keep the last episode played under their own id.
