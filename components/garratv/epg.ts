@@ -1,4 +1,5 @@
 import { apiFetch } from '@/app/lib/apiClient';
+import { formatDeviceTime } from '@/app/lib/deviceClock';
 
 export interface EpgEntry {
     title: string;
@@ -71,7 +72,7 @@ export function epgProgress(entry: EpgEntry, nowSec: number): number {
 
 export function formatEpgTime(unixSec: number, locale: string): string {
     if (!unixSec) return '';
-    return new Date(unixSec * 1000).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    return formatDeviceTime(new Date(unixSec * 1000), locale);
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
