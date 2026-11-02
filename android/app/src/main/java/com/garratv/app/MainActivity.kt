@@ -3,12 +3,14 @@ package com.garratv.app
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.UiModeManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -22,6 +24,7 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.window.OnBackInvokedDispatcher
 import java.io.File
+import java.util.TimeZone
 
 /**
  * The whole app is the exported web UI in one WebView. There is no server: the
@@ -35,9 +38,20 @@ class MainActivity : Activity() {
     private var lastRootBackAt = 0L
 
     /** `window.GarraTVApp`: its presence is how the page knows it runs inside the app. */
-    class AppBridge {
+    class AppBridge(private val context: Context) {
         @JavascriptInterface
         fun platform(): String = "android"
+
+        /**
+         * The device's own clock settings. Some TV WebViews (the TCL's) cannot
+         * resolve the system time zone and fall back to UTC, so the page asks the
+         * system directly instead of trusting `Date`'s local time.
+         */
+        @JavascriptInterface
+        fun utcOffsetMinutes(): Int = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+
+        @JavascriptInterface
+        fun is24HourClock(): Boolean = DateFormat.is24HourFormat(context)
     }
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
@@ -67,7 +81,7 @@ class MainActivity : Activity() {
             // `GarraTVRemote` tells the page it is driven by a remote (app/lib/deviceProfile.ts).
             userAgentString = "$userAgentString GarraTVAndroid" + if (isTelevision()) " GarraTVRemote" else ""
         }
-        webView.addJavascriptInterface(AppBridge(), "GarraTVApp")
+        webView.addJavascriptInterface(AppBridge(applicationContext), "GarraTVApp")
         webView.addJavascriptInterface(DbBridge(dataDir), "GarraTVDb")
         webView.addJavascriptInterface(FsBridge(storage), "GarraTVFs")
         webView.addJavascriptInterface(HttpBridge(webView), "GarraTVHttp")
