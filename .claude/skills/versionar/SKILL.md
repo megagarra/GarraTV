@@ -1,41 +1,59 @@
 ---
 name: versionar
-description: Versiona no git todo trabalho concluído no GarraTV — branch a partir da dev, commits por assunto, merge na dev e push. Use ao terminar qualquer mudança no código (sem esperar o usuário pedir), ou quando ele pedir para commitar, salvar no git, enviar, subir ou "deixar o git correto".
+description: Versiona no git todo trabalho concluído no GarraTV — commits por assunto direto na dev e push. Use ao terminar qualquer mudança no código (sem esperar o usuário pedir), ou quando ele pedir para commitar, salvar no git, enviar, subir ou "deixar o git correto".
 ---
 
-Nenhuma mudança termina só na pasta local: ao concluir uma tarefa que alterou arquivos, ela fica versionada e no GitHub. Fluxo completo em `docs/branching.md`.
+Nenhuma mudança termina só na pasta local: ao concluir uma tarefa que alterou arquivos, ela fica versionada e no GitHub. O repositório tem **só duas branches**: `dev` (dia a dia) e `main` (lançamentos). Não crie outras branches. Fluxo completo em `docs/branching.md`.
 
 ## 1. Branch
 
-- Nunca trabalhe nem commite direto na `main` ou na `dev`.
-- Atualize a `dev` (`git switch dev && git pull`) e crie a branch dela **antes de editar**: `feature/<nome>` para algo novo, `fix/<nome>` para correção. Nome curto, em inglês, com hífens.
-- Se já estiver numa branch de trabalho do mesmo assunto, continue nela.
-- `hotfix/*` (sai da `main`) e `release/*` só quando o usuário pedir um lançamento ou correção urgente do que já está publicado.
+- Trabalhe direto na `dev`. Comece com `git switch dev && git pull`.
+- Nunca commite na `main` no dia a dia: ela só anda em lançamentos e correções urgentes (passo 5).
+- Não crie `feature/*`, `fix/*`, `release/*` nem `hotfix/*`.
 
 ## 2. Validar
 
-- Rode `/build-check`. Erros de lint em arquivos que você **não** mexeu são antigos: cite-os, não bloqueiam. Erros nos seus arquivos bloqueiam.
-- Mudou o app Android? `npm run package:android` precisa passar. Teste nos emuladores; **instalar na TV real só quando o usuário pedir**.
+- Rode `/build-check`. Erros de lint em arquivos que você **não** mexeu são antigos: cite-os, mas eles não bloqueiam. Erros nos seus arquivos bloqueiam.
+- Mudou o app Android? `npm run package:android` precisa passar. Teste nos emuladores; **instale na TV real só quando o usuário pedir**.
 
 ## 3. Commits
 
-- Um commit por assunto. Se a mesma sessão fez coisas diferentes (ex.: desempenho e uma tela nova), separe em commits distintos, mesmo quando dividem arquivos. Confira que cada commit compila sozinho.
-- Mensagem em **inglês**, imperativo, com prefixo: `feat:`, `fix:`, `perf:`, `chore:`, `docs:`, `refactor:`. Corpo explicando o porquê.
+- Um commit por assunto. Se a sessão fez coisas diferentes (ex.: desempenho e uma tela nova), separe em commits distintos, mesmo quando dividem arquivos. Confira que cada commit compila sozinho.
+- Mensagem em **inglês**, no imperativo, com prefixo: `feat:`, `fix:`, `perf:`, `chore:`, `docs:` ou `refactor:`. No corpo, explique o porquê.
 - Termine a mensagem com as linhas de atribuição que o ambiente indicar.
-- Nunca inclua `data/`, `android/keystore/`, `dist/`, credenciais ou arquivos de teste temporários. Revise `git status` antes de cada commit.
+- Nunca inclua `data/`, `android/keystore/`, `dist/`, credenciais ou arquivos temporários de teste. Revise o `git status` antes de cada commit.
 
-## 4. Integrar e enviar
+## 4. Enviar
+
+```bash
+git pull --rebase origin dev   # só se o remoto andou
+git push origin dev
+```
+
+- Confirme que `dev` e `origin/dev` estão no mesmo commit e que o `git status` está limpo.
+- Se o usuário disser para **não** enviar ainda, faça os commits e avise que o push ficou pendente.
+- Nunca use force push.
+
+## 5. Lançamento e correção urgente (só quando o usuário pedir)
+
+**Lançamento:**
 
 ```bash
 git switch dev && git pull
-git merge --no-ff <branch> -m "Merge branch '<branch>' into dev"
-git push origin dev <branch>
+npm version X.Y.Z --no-git-tag-version     # package.json e lock
+# também em desktop/package.json; depois gere e teste os pacotes
+git commit -am "chore: release vX.Y.Z"
+git push origin dev
+git switch main && git pull && git merge --no-ff dev -m "Release vX.Y.Z"
+git tag vX.Y.Z && git push origin main --tags
+git switch dev
 ```
 
-- Confirme que `dev` e `origin/dev` apontam para o mesmo commit e que `git status` está limpo.
-- Se o usuário pedir PR em vez de merge direto, use `/open-pr` (PR para a `dev`, descrição em pt-BR).
-- Se o usuário disser para **não** enviar ainda, faça os commits e o merge local e avise que o push está pendente.
+**Correção urgente** do que já está publicado:
+1. Commite direto na `main`, com versão de patch.
+2. Crie a tag e envie.
+3. Depois rode `git switch dev && git merge --no-ff main` e envie a `dev`.
 
-## 5. Relatar
+## 6. Relatar
 
-Diga em pt-BR: a branch, os commits (hash e título), o merge na `dev` e o push. Diga também o que ficou de fora, por exemplo "não instalei na TV" ou "lint antigo com X erros".
+Diga em pt-BR quais commits foram feitos (hash e título) e se o push foi feito. Diga também o que ficou de fora (ex.: "não instalei na TV", "lint antigo com X erros").

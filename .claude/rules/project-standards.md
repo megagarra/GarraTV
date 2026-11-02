@@ -66,10 +66,6 @@ Rode `/build-check` (lint + `npm run build` completo).
 
 ## Versionamento (sempre)
 
-Todo trabalho concluído que alterou arquivos termina versionado e no GitHub, sem esperar o usuário pedir. Siga a skill `/versionar`:
-- branch `feature/*` ou `fix/*` a partir da `dev`;
-- um commit por assunto;
-- merge `--no-ff` na `dev`;
-- push da `dev` e da branch.
+Todo trabalho concluído que alterou arquivos termina versionado e no GitHub, sem esperar o usuário pedir. Siga a skill `/versionar`: um commit por assunto **direto na `dev`** e push.
 
-Nunca commite direto na `main` nem na `dev`. Só deixe o push para depois se o usuário disser para não enviar.
+O repositório tem **só `main` e `dev`**: não crie branches de trabalho. A `main` só anda em lançamentos e correções urgentes. Só deixe o push para depois se o usuário disser para não enviar.

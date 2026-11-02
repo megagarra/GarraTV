@@ -9,4 +9,4 @@
 - [ ] APK gerado e instalado (`npm run package:android`), se mexe no app Android
 - [ ] Sem credenciais, `data/` ou `android/keystore/` no commit
 
-PR para **`dev`** (ou `main` só vindo de `release/*` ou `hotfix/*` — ver `docs/branching.md`).
+PR para **`dev`**. O fluxo normal é commitar direto na `dev`; PR só quando pedido (ver `docs/branching.md`).
