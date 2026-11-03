@@ -533,7 +533,7 @@ export default function WatchMoviePage() {
                             )}
                         </div>
 
-                        <p className="text-sm md:text-base text-ink-2 leading-relaxed max-w-3xl">
+                        <p className="text-sm md:text-base text-ink-2 leading-relaxed max-w-3xl line-clamp-3">
                             {movie.info.plot || t('watch.noDescription')}
                         </p>
 

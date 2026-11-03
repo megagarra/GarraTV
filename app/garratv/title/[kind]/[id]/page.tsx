@@ -386,7 +386,8 @@ export default function GarraTVTitlePage() {
                                     )}
                                     {info?.genre && <span className="mb-2">{info.genre}</span>}
                                 </div>
-                                {info?.plot && <p className="mt-2.5 text-base leading-relaxed text-white">{info.plot}</p>}
+                                {/* Capped so a long synopsis can't push the buttons and seasons far apart for the remote */}
+                                {info?.plot && <p className="mt-2.5 text-base leading-relaxed text-white line-clamp-3">{info.plot}</p>}
                                 {(info?.cast || info?.director) && (
                                     <div className="mt-[18px] text-sm text-[#B3B3B3] space-y-1">
                                         {info?.cast && (

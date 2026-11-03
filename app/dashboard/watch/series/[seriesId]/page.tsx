@@ -842,7 +842,7 @@ export default function WatchSeriesPage() {
                             )}
                         </div>
 
-                        <p className="text-sm md:text-base text-ink-2 leading-relaxed max-w-3xl">
+                        <p className="text-sm md:text-base text-ink-2 leading-relaxed max-w-3xl line-clamp-3">
                             {series.info.plot || t('watch.noSynopsis')}
                         </p>
 
