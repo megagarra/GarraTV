@@ -142,6 +142,10 @@ async function packageApp(sdk) {
             directories: {
                 app: 'desktop',
                 output: 'dist/windows',
+                // The Store tiles live in desktop/appx/ (scripts/gen-appx-assets.py);
+                // without them electron-builder ships its sample tiles and the Store
+                // rejects the package.
+                buildResources: 'desktop',
             },
             files: ['main.cjs', 'package.json', 'icon.png', 'LICENSE', '!staging/**'],
             extraResources: [
@@ -189,6 +193,8 @@ async function packageApp(sdk) {
                 applicationId: 'GarraTV',
                 languages: ['pt-BR', 'en-US'],
                 showNameOnTiles: true,
+                // Same black as the tile images, so the plate behind them matches.
+                backgroundColor: '#000000',
                 artifactName: 'GarraTV-${version}.${ext}',
             },
         },
