@@ -776,6 +776,21 @@ export function getSyncMetadata(type: string): SyncMetadata | undefined {
         .get(type) as SyncMetadata | undefined;
 }
 
+/** Ids of the streams stored for one category, for a sync that skips re-downloading it. */
+export function getStreamIds(type: ContentType, categoryId: string): string[] {
+    const rows = getConnection()
+        .prepare('SELECT id FROM streams WHERE type = ? AND category_id = ?')
+        .all(type, categoryId) as { id: string }[];
+    return rows.map(row => row.id);
+}
+
+/** Drops every sync_metadata entry whose key starts with `prefix` (sync checkpoints). */
+export function clearSyncMetadata(prefix: string) {
+    getConnection()
+        .prepare('DELETE FROM sync_metadata WHERE substr(type, 1, ?) = ?')
+        .run(prefix.length, prefix);
+}
+
 /**
  * The catalog `last_modified` of a title, or `null` when it is not in the catalog
  * yet — which is not the same thing: a missing row means the stamp cannot be

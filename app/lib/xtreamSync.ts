@@ -44,6 +44,36 @@ const SYNC_STEPS: SyncStep[] = [
 
 const SQLITE_BATCH_SIZE = 1000;
 
+/**
+ * Checkpoints of the run in progress, kept in sync_metadata so an interrupted
+ * sync (app closed, network drop, cancelled because a video started) picks up
+ * where it stopped instead of downloading everything again. A whole catalog is
+ * hundreds of requests on a throttled panel; redoing them is the slow part.
+ */
+const CHECKPOINT_PREFIX = 'sync:';
+const RUN_KEY = `${CHECKPOINT_PREFIX}run`;
+const stepKey = (type: ContentType) => `${CHECKPOINT_PREFIX}step:${type}`;
+const categoryKey = (type: ContentType, categoryId: string) => `${CHECKPOINT_PREFIX}cat:${type}:${categoryId}`;
+/** Past this age an unfinished run is stale: start over rather than mix old and new listings. */
+const RESUME_WINDOW_MS = 12 * 60 * 60 * 1000;
+
+/** Start of the run to continue, or of a new one when there is nothing recent to resume. */
+function openRun(now: number): number {
+    const unfinished = sqlite.getSyncMetadata(RUN_KEY);
+    if (unfinished && now - unfinished.lastSync < RESUME_WINDOW_MS) {
+        console.log('[ServerSync] Resuming the interrupted sync');
+        return unfinished.lastSync;
+    }
+    sqlite.clearSyncMetadata(CHECKPOINT_PREFIX);
+    sqlite.saveSyncMetadata({ type: RUN_KEY, lastSync: now });
+    return now;
+}
+
+function doneInRun(key: string, runStart: number): boolean {
+    const checkpoint = sqlite.getSyncMetadata(key);
+    return checkpoint !== undefined && checkpoint.lastSync >= runStart;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
@@ -210,8 +240,15 @@ export async function syncXtreamToSqlite(
 
     // One provider request at a time, one type after another: Xtream accounts
     // often allow a single connection (max_connections: 1) and reset extras.
+    const runStart = openRun(Date.now());
+
     for (const step of SYNC_STEPS) {
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (doneInRun(stepKey(step.type), runStart)) {
+            const stored = sqlite.getStreamCount(step.type);
+            report(step, 'done', `${step.type} pronto`, stored, stored);
+            continue;
+        }
         try {
             report(step, 'downloading', `Baixando ${step.type}`);
             const categories = (await fetchXtreamArray(credentials, step.categoryAction, signal))
@@ -226,10 +263,18 @@ export async function syncXtreamToSqlite(
                 // fills in steadily and the progress counts real categories.
                 for (let index = 0; index < categories.length; index++) {
                     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-                    const rows = await fetchXtreamArray(credentials, step.streamAction, signal, {
-                        category_id: categories[index].category_id,
-                    });
-                    await saveBatch(rows, step.type, keepIds);
+                    const categoryId = categories[index].category_id;
+                    const checkpoint = categoryKey(step.type, categoryId);
+                    if (doneInRun(checkpoint, runStart)) {
+                        // Already downloaded in this run: keep what is stored.
+                        for (const id of sqlite.getStreamIds(step.type, categoryId)) keepIds.push(id);
+                    } else {
+                        const rows = await fetchXtreamArray(credentials, step.streamAction, signal, {
+                            category_id: categoryId,
+                        });
+                        await saveBatch(rows, step.type, keepIds);
+                        sqlite.saveSyncMetadata({ type: checkpoint, lastSync: Date.now() });
+                    }
                     report(step, 'downloading', `Baixando ${step.type}`, index + 1, categories.length);
                     await yieldToEventLoop();
                 }
@@ -246,6 +291,7 @@ export async function syncXtreamToSqlite(
             if (removed > 0) {
                 console.log(`[ServerSync] Removed ${removed} ${step.type} entries no longer offered by the provider`);
             }
+            sqlite.saveSyncMetadata({ type: stepKey(step.type), lastSync: Date.now() });
             report(step, 'done', `${step.type} pronto`, keepIds.length, keepIds.length);
         } catch (error) {
             if (!signal.aborted) report(step, 'error', `Falha ao baixar ${step.type}`);
@@ -255,6 +301,7 @@ export async function syncXtreamToSqlite(
 
     const timestamp = Date.now();
     sqlite.saveSyncMetadata({ type: 'categories', lastSync: timestamp });
+    sqlite.clearSyncMetadata(CHECKPOINT_PREFIX);
 
     onProgress({
         progress: 100,

@@ -30,7 +30,8 @@ export interface CachedStream {
 }
 
 export interface SyncMetadata {
-    type: ContentType | 'categories';
+    /** 'categories' marks the last complete sync; 'sync:*' keys are checkpoints of an unfinished one. */
+    type: string;
     lastSync: number;
 }
 
