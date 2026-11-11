@@ -272,7 +272,10 @@ export async function syncXtreamToSqlite(
                         const rows = await fetchXtreamArray(credentials, step.streamAction, signal, {
                             category_id: categoryId,
                         });
-                        await saveBatch(rows, step.type, keepIds);
+                        const categoryIds: string[] = [];
+                        await saveBatch(rows, step.type, categoryIds);
+                        sqlite.pruneCategoryStreams(step.type, categoryId, categoryIds);
+                        for (const id of categoryIds) keepIds.push(id);
                         sqlite.saveSyncMetadata({ type: checkpoint, lastSync: Date.now() });
                     }
                     report(step, 'downloading', `Baixando ${step.type}`, index + 1, categories.length);
