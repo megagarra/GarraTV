@@ -65,7 +65,7 @@ function useVisibleEpg(guideEnabled: boolean, streamId: string, limit: number) {
         if (!node || !guideEnabled) return undefined;
         let cancelled = false;
         const load = () => {
-            loadShortEpg(streamId, limit).then((result) => {
+            loadShortEpg(streamId, limit, () => !cancelled).then((result) => {
                 if (!cancelled) setEntries(result);
             });
         };

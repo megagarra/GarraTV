@@ -89,7 +89,9 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
             running++;
             task().then(resolve, reject).then(() => {
                 running--;
-                const next = waiting.shift();
+                // Newest first: while the list scrolls, the rows now on screen
+                // matter more than the ones queued on the way there.
+                const next = waiting.pop();
                 if (next) next();
             });
         };
@@ -98,13 +100,20 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
     });
 }
 
-/** Short EPG for one channel, cached per channel/limit for a few minutes. */
-export function loadShortEpg(streamId: string, limit: number): Promise<EpgEntry[]> {
+const SKIPPED = 'epg-skipped';
+
+/**
+ * Short EPG for one channel, cached per channel/limit for a few minutes.
+ * `stillWanted` is asked when the request reaches the front of the queue: a row
+ * that scrolled away by then costs no provider call.
+ */
+export function loadShortEpg(streamId: string, limit: number, stillWanted?: () => boolean): Promise<EpgEntry[]> {
     const key = `${streamId}|${limit}`;
     const cached = epgCache.get(key);
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.request;
 
     const request = enqueue(async () => {
+        if (stillWanted && !stillWanted()) throw new Error(SKIPPED);
         const response = await apiFetch('/api/proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -112,7 +121,7 @@ export function loadShortEpg(streamId: string, limit: number): Promise<EpgEntry[
         });
         return parseEpgPayload(await response.json());
     }).catch((err: unknown) => {
-        console.error('[GarraTV] EPG request failed', err);
+        if (!(err instanceof Error && err.message === SKIPPED)) console.error('[GarraTV] EPG request failed', err);
         epgCache.delete(key);
         return [] as EpgEntry[];
     });

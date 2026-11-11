@@ -16,6 +16,8 @@ import { warmVod } from '@/app/lib/vodWarmup';
 import { formatClock, minutesLeft, watchState } from '@/app/lib/watchState';
 import type { CachedStream } from '@/app/lib/dbTypes';
 import { formatRating } from '@/app/lib/formatRating';
+import LazyImage from '@/components/garratv/LazyImage';
+import { sizedImage } from '@/components/garratv/images';
 import Shell from '@/components/garratv/Shell';
 import { display, ghostButton, placeholderGradient, primaryButton, progressWidth } from '@/components/garratv/styles';
 
@@ -301,8 +303,9 @@ export default function GarraTVTitlePage() {
     })();
     const saved = isFavorite(id, kind);
     const title = info?.name || '';
-    const poster = httpUrl(info?.movie_image) || httpUrl(info?.cover);
-    const backdrop = httpUrl(info?.backdrop_path?.[0]) || poster;
+    // Catalogs ship w1280/original art; a TV decodes it slowly and never shows it that large.
+    const poster = sizedImage(httpUrl(info?.movie_image) || httpUrl(info?.cover), 'posterLarge');
+    const backdrop = sizedImage(httpUrl(info?.backdrop_path?.[0]), 'backdrop') || poster;
     const year = yearFrom(info?.releasedate || info?.releaseDate);
     const rating = formatRating(info?.rating);
     const trailer = info?.youtube_trailer?.trim();
@@ -491,7 +494,7 @@ export default function GarraTVTitlePage() {
 
                             {seasonEpisodes.map((episode, index) => {
                                 const episodeTitle = episode.title || t('garratv.episodeLabel', { n: episode.episode_num ?? index + 1 });
-                                const image = httpUrl(episode.info?.movie_image);
+                                const image = sizedImage(httpUrl(episode.info?.movie_image), 'poster');
                                 const state = watchState(getProgress(episode.id));
                                 const ratio = state.inProgress ? state.ratio : 0;
                                 const status = state.watched
@@ -519,7 +522,7 @@ export default function GarraTVTitlePage() {
                                         >
                                             <div className="ratio ratio-wide">
                                                 <div className="ratio-fill flex items-center justify-center">
-                                                    {image && <img src={image} alt="" loading="lazy" className="absolute top-0 left-0 w-full h-full object-cover" />}
+                                                    {image && <LazyImage src={image} className="absolute top-0 left-0 w-full h-full object-cover" />}
                                                     <span className="relative w-10 h-10 rounded-full bg-[rgba(0,0,0,0.55)] border-[1.5px] border-[rgba(255,255,255,0.8)] flex items-center justify-center">
                                                         <Play size={16} className="ml-0.5" fill="currentColor" />
                                                     </span>

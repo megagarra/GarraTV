@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, LogOut, RefreshCw, Settings, User } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
@@ -33,7 +33,7 @@ interface HeaderProps {
     backHref?: string;
 }
 
-export default function Header({ title, backHref }: HeaderProps) {
+function Header({ title, backHref }: HeaderProps) {
     const t = useT();
     const { locale } = useI18n();
     const { user, logout } = useAuth();
@@ -193,3 +193,5 @@ export default function Header({ title, backHref }: HeaderProps) {
         </header>
     );
 }
+
+export default memo(Header);
