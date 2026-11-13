@@ -2,7 +2,8 @@
 /**
  * Packages the server-less Android app (phone + Android TV / Google TV).
  *
- *   node scripts/package-android.mjs          → dist/android/GarraTV-<version>.apk
+ *   node scripts/package-android.mjs          → dist/android/GarraTV-<version>.apk (sideload)
+ *                                               + dist/android/GarraTV-<version>.aab (Google Play)
  *   node scripts/package-android.mjs --web    → only the static web bundle (no Gradle)
  *
  * The app is the same Next.js UI, exported as static files, with the project's
@@ -305,9 +306,9 @@ function buildApk() {
     fs.writeFileSync(path.join(androidDir, 'local.properties'), `sdk.dir=${sdk.replace(/\\/g, '\\\\')}\n`);
     ensureKeystore(javaHome);
 
-    log('building APK');
+    log('building APK and Play bundle');
     const gradlew = path.join(androidDir, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
-    run(gradlew, ['assembleRelease', `-PappVersionName=${version}`, '--console=plain'], {
+    run(gradlew, ['assembleRelease', 'bundleRelease', `-PappVersionName=${version}`, '--console=plain'], {
         cwd: androidDir,
         env: { ...process.env, JAVA_HOME: javaHome },
     });
@@ -317,7 +318,13 @@ function buildApk() {
     fs.mkdirSync(distDir, { recursive: true });
     const target = path.join(distDir, `GarraTV-${version}.apk`);
     fs.copyFileSync(apk, target);
-    log(`done → ${path.relative(root, target)}`);
+
+    // Google Play only takes App Bundles; it builds the per-device APKs itself.
+    const aab = path.join(androidDir, 'app', 'build', 'outputs', 'bundle', 'release', 'app-release.aab');
+    if (!fs.existsSync(aab)) fail('Gradle finished but no App Bundle was produced');
+    const bundleTarget = path.join(distDir, `GarraTV-${version}.aab`);
+    fs.copyFileSync(aab, bundleTarget);
+    log(`done → ${path.relative(root, target)} and ${path.relative(root, bundleTarget)}`);
 }
 
 stage();

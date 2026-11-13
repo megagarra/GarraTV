@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { enforceAccountAccess } from '@/app/lib/apiAuth';
 import { readCredentials } from '@/app/lib/liveShare';
-import { refreshSpotlight } from '@/app/lib/spotlight';
 import type { ContentType } from '@/app/lib/dbTypes';
 import { syncXtreamToSqlite, type SyncProgressUpdate, type SyncStage, type XtreamCredentials } from '@/app/lib/xtreamSync';
 
@@ -110,8 +109,6 @@ async function runJob(job: SyncJob, credentials: XtreamCredentials) {
         job.progress = 100;
         job.message = 'Sincronizacao concluida';
         job.lastSync = lastSync;
-        // New catalog: rebuild the home highlights now, before anyone opens home.
-        refreshSpotlight('pt-BR');
     } catch (error) {
         if (job.controller.signal.aborted) {
             job.status = 'cancelled';

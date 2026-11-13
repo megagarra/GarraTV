@@ -12,6 +12,7 @@ import { SubtitleProvider } from '../app/context/SubtitleContext';
 import { ProfileProvider, useProfile } from '../app/context/ProfileContext';
 import ProfileSelector from '@/components/ProfileSelector';
 import RemoteFavorites from '@/components/RemoteFavorites';
+import SyncHomeRedirect from '@/components/garratv/SyncHomeRedirect';
 
 /**
  * Favorites and watch progress are loaded once on mount from the profile the
@@ -35,6 +36,7 @@ function ProfileScopedProviders({ children }: { children: React.ReactNode }) {
                         <TvNavigationProvider>
                             {children}
                             <RemoteFavorites />
+                            <SyncHomeRedirect />
                         </TvNavigationProvider>
                     </SubtitleProvider>
                 </TMDbProvider>

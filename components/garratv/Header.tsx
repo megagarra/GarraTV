@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, LogOut, RefreshCw, Settings, User } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { useData, useSyncStatus } from '@/app/context/DataContext';
 import { useProfile } from '@/app/context/ProfileContext';
 import { useI18n, useT } from '@/app/context/I18nContext';
+import { formatDeviceDate, formatDeviceTime } from '@/app/lib/deviceClock';
 import { display, iconButton } from './styles';
 
 function formatExpiry(expDate: string | undefined, unlimited: string): string {
@@ -32,7 +33,7 @@ interface HeaderProps {
     backHref?: string;
 }
 
-export default function Header({ title, backHref }: HeaderProps) {
+function Header({ title, backHref }: HeaderProps) {
     const t = useT();
     const { locale } = useI18n();
     const { user, logout } = useAuth();
@@ -54,8 +55,8 @@ export default function Header({ title, backHref }: HeaderProps) {
     }, []);
 
     const expiry = formatExpiry(user?.exp_date, t('common.unlimited'));
-    const time = now ? now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
-    const date = now ? now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    const time = now ? formatDeviceTime(now, locale) : '';
+    const date = now ? formatDeviceDate(now, locale, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
 
     return (
         <header className="relative z-30 h-[72px] short:h-14 phone:hidden flex-shrink-0 flex items-center justify-between px-4 md:px-10 short:md:px-8 bg-black border-b border-[#222222]">
@@ -192,3 +193,5 @@ export default function Header({ title, backHref }: HeaderProps) {
         </header>
     );
 }
+
+export default memo(Header);

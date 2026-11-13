@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import { getDeviceProfile } from '@/app/lib/deviceProfile';
 import { apiFetch } from '@/app/lib/apiClient';
+import { WATCHED_RATIO } from '@/app/lib/watchState';
 
 export interface WatchProgress {
     streamId: string | number;
@@ -86,14 +87,21 @@ export const WatchProgressProvider = ({ children }: { children: ReactNode }) => 
         loadProgress();
     }, []);
 
+    // Keys whose detail arrived at least once: a reload then refreshes in the background
+    // instead of putting the player behind a loader again (the title screen and the
+    // player both ask for the same series one after the other).
+    const loadedDetailKeys = useRef(new Set<string>());
+
     const loadDetail = useCallback(async (type: 'series' | 'movie', id: string | number) => {
         const key = `${type}-${id}`;
-        setLoadingDetails(prev => ({ ...prev, [key]: true }));
+        const refresh = loadedDetailKeys.current.has(key);
+        if (!refresh) setLoadingDetails(prev => ({ ...prev, [key]: true }));
 
         try {
             const res = await apiFetch(`/api/watch-progress/${type}/${id}`);
             if (res.ok) {
                 const data = await res.json();
+                loadedDetailKeys.current.add(key);
                 setDetailedProgressMap(prev => {
                     if (JSON.stringify(prev[key]) === JSON.stringify(data)) return prev;
                     return {
@@ -105,7 +113,7 @@ export const WatchProgressProvider = ({ children }: { children: ReactNode }) => 
         } catch (e) {
             console.error(`Failed to fetch detailed progress for ${key}`, e);
         } finally {
-            setLoadingDetails(prev => ({ ...prev, [key]: false }));
+            if (!refresh) setLoadingDetails(prev => ({ ...prev, [key]: false }));
         }
     }, []);
 
@@ -148,8 +156,13 @@ export const WatchProgressProvider = ({ children }: { children: ReactNode }) => 
             const isNewEntry = !existing;
             const episodeChanged = existing?.episodeId !== progress.episodeId;
             const durationArrived = !existing?.duration && finalDuration > 0;
+            // The last seconds fall inside the sync threshold; without this a finished
+            // title stayed saved a few seconds short and never showed as watched.
+            const finishedNow = finalDuration > 0
+                && progress.progress / finalDuration >= WATCHED_RATIO
+                && !(isSameEpisode && existing.progress / finalDuration >= WATCHED_RATIO);
 
-            if (isNewEntry || progressDiff > minProgressDiff || episodeChanged || durationArrived) {
+            if (isNewEntry || progressDiff > minProgressDiff || episodeChanged || durationArrived || finishedNow) {
                 // Sync to granular API immediately
                 const type = progress.type;
                 const id = contentId;

@@ -92,11 +92,7 @@ export default function WatchLivePage() {
     );
 
     return (
-        <div className="fixed inset-0 bg-bg z-50 flex flex-col">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-transparent z-10" />
-            </div>
-
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
             <div className="relative flex-1 flex items-center justify-center">
                 <VideoPlayer
                     src={streamUrl}

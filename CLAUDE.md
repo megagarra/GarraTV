@@ -12,7 +12,13 @@ Idioma: **código e comentários sempre em inglês**; **textos de UI via i18n** 
 
 ## Branches
 
-`main` = estável (só recebe `release/*` e `hotfix/*`, cada lançamento com tag `vX.Y.Z`); `dev` = integração. Trabalho novo sai da `dev` em `feature/<nome>` ou `fix/<nome>` e volta por PR para a `dev`. Nunca commite direto na `main`. Detalhes: `docs/branching.md`.
+Só duas branches, sem branches de trabalho:
+- `dev`: o dia a dia, com commits direto nela.
+- `main`: estável, recebe a `dev` em cada lançamento, com tag `vX.Y.Z`.
+
+Correção urgente vai direto na `main` e depois é mesclada na `dev`. Detalhes: `docs/branching.md`.
+
+**Sempre versione:** ao concluir qualquer mudança, rode `/versionar` (commits por assunto na `dev` e push).
 
 ## Comandos
 

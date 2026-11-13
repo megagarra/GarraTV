@@ -12,6 +12,7 @@ import Shell from '@/components/garratv/Shell';
 import CategorySidebar from '@/components/garratv/CategorySidebar';
 import LivePreview, { type LivePreviewHandle } from '@/components/garratv/LivePreview';
 import { favoriteTargetProps } from '@/app/lib/favoriteTarget';
+import { itemIdFromEvent, recallScreen, rememberScreen, restoreFocus } from '@/app/lib/screenMemory';
 import LazyImage from '@/components/garratv/LazyImage';
 import { ChannelListSkeleton, SidebarSkeleton } from '@/components/garratv/Skeletons';
 import { useWindowedRows } from '@/app/hooks/useWindowedRows';
@@ -64,7 +65,7 @@ function useVisibleEpg(guideEnabled: boolean, streamId: string, limit: number) {
         if (!node || !guideEnabled) return undefined;
         let cancelled = false;
         const load = () => {
-            loadShortEpg(streamId, limit).then((result) => {
+            loadShortEpg(streamId, limit, () => !cancelled).then((result) => {
                 if (!cancelled) setEntries(result);
             });
         };
@@ -353,12 +354,18 @@ function LiveScreen() {
     const { isAuthenticated } = useAuth();
     const searchParams = useSearchParams();
     const requested = searchParams.get('channel');
-    const initialFilter = searchParams.get('filter') === FILTER_FAVORITES ? FILTER_FAVORITES : FILTER_ALL;
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
-    const [filter, setFilter] = useState(initialFilter);
-    const [query, setQuery] = useState('');
-    const [mode, setMode] = useState<'list' | 'grid'>('list');
-    const [selectedId, setSelectedId] = useState<string | null>(requested);
+    // Back from the full player (or any screen) returns to the same category,
+    // layout, channel, scroll and row. A link asking for a channel or for the
+    // favorites wins over what was remembered.
+    const [saved] = useState(() => recallScreen('live'));
+    const linkFilter = searchParams.get('filter') === FILTER_FAVORITES ? FILTER_FAVORITES : null;
+    const restoring = !requested && !linkFilter ? saved : undefined;
+    const [filter, setFilter] = useState(linkFilter ?? restoring?.filter ?? FILTER_ALL);
+    const [query, setQuery] = useState(restoring?.query ?? '');
+    const [mode, setMode] = useState<'list' | 'grid'>(saved?.mode ?? 'list');
+    const [selectedId, setSelectedId] = useState<string | null>(requested ?? restoring?.selectedId ?? null);
+    const listScrollRef = useRef<HTMLDivElement>(null);
     const data = useCatalogData('live', filter, query, 'name-asc');
     const { containerRef: listRef, start: windowStart, end: windowEnd, topSpace, bottomSpace } = useWindowedRows({
         itemCount: data.items.length,
@@ -377,12 +384,26 @@ function LiveScreen() {
         ?? null;
     const activeId = selected ? selected.id : null;
 
+    useEffect(() => {
+        rememberScreen('live', { mode, selectedId: activeId });
+    }, [mode, activeId]);
+    useEffect(() => {
+        // Another category or search: the remembered row belongs to the old list.
+        const changed = filter !== (restoring?.filter ?? FILTER_ALL) || query !== (restoring?.query ?? '');
+        rememberScreen('live', changed ? { filter, query, focusId: null } : { filter, query });
+    }, [filter, query, restoring]);
+
     const focusedOnce = useRef(false);
     useEffect(() => {
-        if (data.loading || focusedOnce.current) return;
+        if (data.loading || focusedOnce.current) return undefined;
         focusedOnce.current = true;
-        document.querySelector<HTMLElement>('[data-initial-focus="true"]')?.focus();
-    }, [data.loading]);
+        const focusFirst = () => document.querySelector<HTMLElement>('[data-initial-focus="true"]')?.focus();
+        if (!restoring?.focusId) {
+            focusFirst();
+            return undefined;
+        }
+        return restoreFocus({ scroller: listScrollRef.current, scrollTop: restoring.scrollTop ?? 0, itemId: restoring.focusId, fallback: focusFirst });
+    }, [data.loading, restoring]);
 
     const numbers = useMemo(() => {
         const map = new Map<string, number>();
@@ -493,7 +514,15 @@ function LiveScreen() {
                         </div>
                     </div>
 
-                    <div className="flex-1 min-h-0 md:overflow-y-auto overflow-x-hidden phone:overflow-y-auto">
+                    <div
+                        ref={listScrollRef}
+                        onScroll={(event) => rememberScreen('live', { scrollTop: event.currentTarget.scrollTop })}
+                        onFocus={(event) => {
+                            const focusId = itemIdFromEvent(event);
+                            if (focusId) rememberScreen('live', { focusId });
+                        }}
+                        className="flex-1 min-h-0 md:overflow-y-auto overflow-x-hidden phone:overflow-y-auto"
+                    >
                         {data.loading ? (
                             <ChannelListSkeleton />
                         ) : data.items.length === 0 ? (

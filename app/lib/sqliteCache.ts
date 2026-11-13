@@ -479,6 +479,29 @@ export function pruneStreams(type: ContentType, keepIds: (string | number)[]): n
     })();
 }
 
+/**
+ * Same as pruneStreams, for one category whose full listing just arrived. Run per
+ * category so what is stored for it is exactly what the provider lists, which is
+ * what lets a resumed sync trust the stored rows of a category it skips.
+ */
+export function pruneCategoryStreams(type: ContentType, categoryId: string, keepIds: (string | number)[]): number {
+    if (keepIds.length === 0) return 0;
+
+    const db = getConnection();
+
+    return db.transaction(() => {
+        loadKeepIds(db, keepIds);
+        db.prepare(`
+            DELETE FROM details WHERE type = ? AND id IN (
+                SELECT id FROM streams WHERE type = ? AND category_id = ? AND id NOT IN (SELECT id FROM sync_keep)
+            )
+        `).run(type, type, categoryId);
+        return db
+            .prepare('DELETE FROM streams WHERE type = ? AND category_id = ? AND id NOT IN (SELECT id FROM sync_keep)')
+            .run(type, categoryId).changes;
+    })();
+}
+
 export function pruneCategories(type: ContentType, keepIds: (string | number)[]): number {
     if (keepIds.length === 0) return 0;
 
@@ -774,6 +797,21 @@ export function getSyncMetadata(type: string): SyncMetadata | undefined {
     return getConnection()
         .prepare('SELECT type, lastSync FROM sync_metadata WHERE type = ?')
         .get(type) as SyncMetadata | undefined;
+}
+
+/** Ids of the streams stored for one category, for a sync that skips re-downloading it. */
+export function getStreamIds(type: ContentType, categoryId: string): string[] {
+    const rows = getConnection()
+        .prepare('SELECT id FROM streams WHERE type = ? AND category_id = ?')
+        .all(type, categoryId) as { id: string }[];
+    return rows.map(row => row.id);
+}
+
+/** Drops every sync_metadata entry whose key starts with `prefix` (sync checkpoints). */
+export function clearSyncMetadata(prefix: string) {
+    getConnection()
+        .prepare('DELETE FROM sync_metadata WHERE substr(type, 1, ?) = ?')
+        .run(prefix.length, prefix);
 }
 
 /**

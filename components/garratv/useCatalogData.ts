@@ -94,9 +94,10 @@ export function useCatalogData(type: ContentType, filter: string, query: string,
     }), [type, filter, sort]);
     const listKey = `${type}|${filter}|${debouncedQuery}|${sort}|${lastSync ?? ''}`;
 
-    // First page (or the whole result, for search and favorites).
+    // First page (or the whole result, for search and favorites). It does not wait
+    // for the category metadata above: the two load side by side, so a screen
+    // opens after one round trip instead of two.
     useEffect(() => {
-        if (!metaReady) return undefined;
         if (filter === FILTER_FAVORITES && !searching && !favoritesLoaded) return undefined;
 
         let cancelled = false;
@@ -162,7 +163,7 @@ export function useCatalogData(type: ContentType, filter: string, query: string,
         };
         // `favorites` matters only for the favorites filter; the key covers the rest.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [listKey, metaReady, favoritesLoaded, filter === FILTER_FAVORITES ? favorites : null]);
+    }, [listKey, favoritesLoaded, filter === FILTER_FAVORITES ? favorites : null]);
 
     const hasMore = !searching && filter !== FILTER_FAVORITES && items.length < listTotal;
 

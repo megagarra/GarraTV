@@ -256,23 +256,6 @@
             "description": "Choose the interface language. Subtitles have their own setting.",
             "label": "Interface language",
             "system": "Automatic (system language)"
-        },
-        "freeTier": {
-            "title": "Free channels",
-            "description": "Public channels (iptv-org) shown to visitors without an Xtream Codes account, plus the contact to unlock everything.",
-            "contactLabel": "Contact to unlock access",
-            "contactLabelHint": "Shown to visitors. E.g. an email or WhatsApp.",
-            "contactLabelPlaceholder": "contact@example.com",
-            "contactUrl": "Contact link (optional)",
-            "contactUrlHint": "Becomes the \"Contact us\" button. Accepts mailto:, https:// or tel:",
-            "refresh": "Refresh list",
-            "saved": "Settings saved.",
-            "saveFailed": "Couldn't save.",
-            "refreshed": "List refreshed: {n} channels.",
-            "refreshFailed": "Couldn't refresh the list.",
-            "sessionRequired": "Sign in to the account to change this setting.",
-            "defaultCountry": "Default country",
-            "defaultCountryHint": "Used when the visitor's country has no list. Each visitor can change country on the free channels screen."
         }
     },
     "profiles": {
@@ -588,11 +571,6 @@
         "countryAll": "All countries",
         "countryNone": "No country found.",
         "countryEmpty": "This country has no free channels available right now. Pick another country.",
-        "spotlightNow": "On now",
-        "spotlightUntil": "until {time}",
-        "spotlightTrending": "Trending today",
-        "spotlightNew": "Just added",
-        "spotlightToday": "Today at {time}",
         "loadingTitle": "Getting your catalog ready",
         "loadingSubtitle": "Downloading channels, movies and series. The app opens as soon as everything is in.",
         "loadingChecking": "Checking your catalog…",
@@ -605,6 +583,16 @@
         "loadingErrorTitle": "Couldn't load the catalog",
         "loadingRetry": "Try again",
         "loadingOtherAccount": "Use another account",
-        "loadingCategories": "Downloading category {done} of {total}"
+        "loadingCategories": "Downloading category {done} of {total}",
+        "watched": "Watched",
+        "inFavorites": "In favorites",
+        "minutesLeft": "{n} min left",
+        "resumeAt": "Resume from {time}",
+        "continueEpisode": "Continue S{season}:E{episode}",
+        "nextEpisode": "Next: S{season}:E{episode}",
+        "startOver": "From the start",
+        "watchAgain": "Watch again",
+        "stoppedAt": "Stopped at {time}",
+        "episodeShort": "S{season}:E{episode}"
     }
 }

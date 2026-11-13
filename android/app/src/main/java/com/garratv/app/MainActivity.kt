@@ -3,11 +3,14 @@ package com.garratv.app
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.UiModeManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -19,7 +22,9 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.window.OnBackInvokedDispatcher
 import java.io.File
+import java.util.TimeZone
 
 /**
  * The whole app is the exported web UI in one WebView. There is no server: the
@@ -33,9 +38,20 @@ class MainActivity : Activity() {
     private var lastRootBackAt = 0L
 
     /** `window.GarraTVApp`: its presence is how the page knows it runs inside the app. */
-    class AppBridge {
+    class AppBridge(private val context: Context) {
         @JavascriptInterface
         fun platform(): String = "android"
+
+        /**
+         * The device's own clock settings. Some TV WebViews (the TCL's) cannot
+         * resolve the system time zone and fall back to UTC, so the page asks the
+         * system directly instead of trusting `Date`'s local time.
+         */
+        @JavascriptInterface
+        fun utcOffsetMinutes(): Int = TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+
+        @JavascriptInterface
+        fun is24HourClock(): Boolean = DateFormat.is24HourFormat(context)
     }
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
@@ -46,7 +62,8 @@ class MainActivity : Activity() {
 
         val storage = File(filesDir, "vfs")
         val dataDir = File(storage, "app/data")
-        val handler = AppRequestHandler(assets, Credentials(File(dataDir, "config.json")), File(dataDir, "free-channels"))
+        val credentials = Credentials(File(dataDir, "config.json"))
+        val handler = AppRequestHandler(assets, credentials, File(dataDir, "free-channels"))
 
         webView = WebView(this)
         webView.setBackgroundColor(0xFF000000.toInt())
@@ -64,7 +81,7 @@ class MainActivity : Activity() {
             // `GarraTVRemote` tells the page it is driven by a remote (app/lib/deviceProfile.ts).
             userAgentString = "$userAgentString GarraTVAndroid" + if (isTelevision()) " GarraTVRemote" else ""
         }
-        webView.addJavascriptInterface(AppBridge(), "GarraTVApp")
+        webView.addJavascriptInterface(AppBridge(applicationContext), "GarraTVApp")
         webView.addJavascriptInterface(DbBridge(dataDir), "GarraTVDb")
         webView.addJavascriptInterface(FsBridge(storage), "GarraTVFs")
         webView.addJavascriptInterface(HttpBridge(webView), "GarraTVHttp")
@@ -105,7 +122,15 @@ class MainActivity : Activity() {
 
         setContentView(webView)
         hideSystemBars()
-        if (savedInstanceState == null) webView.loadUrl("${AppRequestHandler.ORIGIN}/garratv/")
+        // Apps targeting Android 16 no longer get onBackPressed(): Back (the remote's
+        // too) arrives through the back-invoked dispatcher, available from Android 13.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
+        }
+        // With an account saved, open the home screen itself: the sign-in page would only
+        // load its own code, check the account and redirect there anyway.
+        val entry = if (credentials.current() != null) "/garratv/home/" else "/garratv/"
+        if (savedInstanceState == null) webView.loadUrl("${AppRequestHandler.ORIGIN}$entry")
         else webView.restoreState(savedInstanceState)
     }
 
@@ -143,6 +168,10 @@ class MainActivity : Activity() {
      */
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        handleBack()
+    }
+
+    private fun handleBack() {
         if (customView != null) {
             webView.webChromeClient?.onHideCustomView()
             return

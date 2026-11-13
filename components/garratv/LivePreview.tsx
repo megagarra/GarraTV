@@ -34,6 +34,9 @@ interface LegacyFullscreen {
     webkitRequestFullscreen?: () => void;
 }
 
+/** The control bar fades out this long after the last interaction while the channel plays. */
+const CONTROLS_HIDE_MS = 3000;
+
 const controlButton =
     'w-8 h-8 flex items-center justify-center rounded text-white outline-none transition-colors duration-200 hover:text-[#E50914] focus:shadow-[0_0_0_2px_#E50914]';
 
@@ -45,6 +48,21 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
     const [muted, setMuted] = useState(false);
     const [paused, setPaused] = useState(false);
     const [failed, setFailed] = useState(false);
+    // The bar sits on a dark gradient; left up while the channel plays it shades
+    // the bottom of the picture, so it fades out like the full player's does.
+    const [controlsVisible, setControlsVisible] = useState(true);
+    const hideTimer = useRef(0);
+
+    const focusInside = () => !!frameRef.current && frameRef.current.contains(document.activeElement);
+    const wakeControls = () => {
+        setControlsVisible(true);
+        window.clearTimeout(hideTimer.current);
+        hideTimer.current = window.setTimeout(() => {
+            // A remote resting on one of the buttons keeps them up.
+            if (!focusInside()) setControlsVisible(false);
+        }, CONTROLS_HIDE_MS);
+    };
+    const showingControls = controlsVisible || paused || failed;
 
     useEffect(() => {
         const video = videoRef.current;
@@ -132,6 +150,14 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
         };
     }, [streamId, srcOverride]);
 
+    // Each channel (and each resume) starts with the bar up, then clears the picture.
+    useEffect(() => {
+        if (!paused && !failed) wakeControls();
+        return () => window.clearTimeout(hideTimer.current);
+        // wakeControls only touches refs and state setters.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paused, failed, streamId]);
+
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -166,7 +192,16 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
     }));
 
     return (
-        <div ref={frameRef} className="relative flex-shrink-0 rounded-lg overflow-hidden border border-[#222222] bg-black">
+        <div
+            ref={frameRef}
+            onFocus={() => {
+                window.clearTimeout(hideTimer.current);
+                setControlsVisible(true);
+            }}
+            onBlur={wakeControls}
+            onMouseMove={wakeControls}
+            className="relative flex-shrink-0 rounded-lg overflow-hidden border border-[#222222] bg-black"
+        >
             <div className="ratio ratio-wide">
                 <div className="ratio-fill">
                     {poster && (failed || paused) && (
@@ -211,7 +246,7 @@ export default function LivePreview({ streamId, number, title, poster, timeRange
                     )}
 
                     <div
-                        className="absolute left-0 right-0 bottom-0 pt-7 pb-3 px-4 flex items-center"
+                        className={`absolute left-0 right-0 bottom-0 pt-7 pb-3 px-4 flex items-center transition-opacity duration-300 ${showingControls ? 'opacity-100' : 'opacity-0'}`}
                         style={{ background: 'linear-gradient(0deg, rgba(0,0,0,0.85), transparent)' }}
                     >
                         <button

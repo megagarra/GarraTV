@@ -89,6 +89,13 @@ function CategorySidebar({
         });
     });
 
+    // A search covers the whole section and outranks the category, so picking a
+    // category while one is typed would change nothing on screen: drop the search.
+    const pick = (id: string) => {
+        if (query) onQuery('');
+        onFilter(id);
+    };
+
     const search = (
         <div className="relative">
             <Search size={18} className="absolute left-[14px] top-[13px] text-[#8C8C8C] pointer-events-none" />
@@ -121,7 +128,7 @@ function CategorySidebar({
                                     data-focusable="true"
                                     data-own-focus="true"
                                     tabIndex={0}
-                                    onClick={() => onFilter(entry.id)}
+                                    onClick={() => pick(entry.id)}
                                     className={[
                                         'relative w-full h-11 mb-0.5 flex items-center pl-[18px] pr-[14px] rounded text-sm text-left outline-none transition-colors duration-200',
                                         'hover:bg-[#2A2A2A] hover:text-white focus:bg-[#2A2A2A] focus:text-white focus:shadow-[inset_0_0_0_2px_#E50914]',
@@ -155,7 +162,7 @@ function CategorySidebar({
                                 data-focusable="true"
                                 data-own-focus="true"
                                 tabIndex={0}
-                                onClick={() => onFilter(entry.id)}
+                                onClick={() => pick(entry.id)}
                                 className={[
                                     'flex-shrink-0 h-9 px-[14px] mr-2 rounded-[18px] border text-[13px] font-bold whitespace-nowrap flex items-center outline-none transition-colors duration-200 focus:shadow-[0_0_0_2px_#ffffff]',
                                     active ? 'bg-[#E50914] border-[#E50914]' : 'bg-[#1F1F1F] border-[#333333]',

@@ -1,74 +1,65 @@
 # Fluxo de branches
 
-Regra de ouro: **a `main` só recebe código já testado.** Todo trabalho novo nasce
-da `dev` e volta para ela por PR; a `main` anda só em lançamentos e correções
-urgentes.
+O repositório tem **só duas branches**:
+
+| Branch | Para quê |
+|---|---|
+| `main` | Versão estável e publicada (TVs, Windows, lojas). Cada lançamento vira uma tag `vX.Y.Z`. |
+| `dev` | O dia a dia. Todo trabalho é commitado direto aqui e precisa estar sempre compilando. |
+
+Não criamos branches de trabalho (`feature/*`, `fix/*`, `release/*`, `hotfix/*`).
 
 ```
-main      ●───────────────●────────────●──────────   (estável: o que está nas TVs e no .exe)
-           \             / \          /
-release     \     release/1.22.0     /
-             \         /     \      /
-dev           ●──●──●─●───────●────●──●───────────   (integração: próxima versão)
-                \  /    \    /         \
-feature/…        ●●      ●──●           hotfix/… (sai da main, volta para main e dev)
+main   ●──────────────●──────────────●────   (lançamentos, com tag)
+        \            /              /
+dev      ●──●──●──●─●──●──●──●──●──●──●────   (commits do dia a dia)
 ```
-
-## As branches
-
-| Branch | Para quê | Sai de | Volta para |
-|---|---|---|---|
-| `main` | Versão estável, publicada. Cada lançamento vira uma tag `vX.Y.Z`. | — | — |
-| `dev` | Integração do que vai na próxima versão. Sempre compilando. | `main` | — |
-| `feature/<nome>` | Funcionalidade nova (`feature/epg-grade`). | `dev` | `dev` (PR) |
-| `fix/<nome>` | Correção que pode esperar o próximo lançamento. | `dev` | `dev` (PR) |
-| `release/<versão>` | Congela a próxima versão para testar na TV, Windows e celular. Só correções entram. | `dev` | `main` + tag, depois `dev` |
-| `hotfix/<nome>` | Correção urgente do que já está publicado. | `main` | `main` + tag, depois `dev` |
 
 ## No dia a dia
 
 ```bash
 git switch dev && git pull
-git switch -c feature/minha-mudanca
-# ...commits pequenos, mensagem em inglês no imperativo (feat:, fix:, chore:...)
-git push -u origin feature/minha-mudanca
-# abra o PR para a dev (descrição em pt-BR)
+# ...trabalhe, teste
+git commit -m "feat: ..."      # um commit por assunto, em inglês, no imperativo
+git push origin dev
 ```
 
 ## Lançando uma versão
 
 ```bash
 git switch dev && git pull
-git switch -c release/1.22.0
-npm version 1.22.0 --no-git-tag-version   # package.json/lock
+npm version 1.22.0 --no-git-tag-version   # package.json e lock
+# atualize também desktop/package.json
 # gere e teste: npm run package:android, npm run package:windows, TV real
 git commit -am "chore: release v1.22.0"
-git switch main && git merge --no-ff release/1.22.0
+git push origin dev
+git switch main && git pull
+git merge --no-ff dev -m "Release v1.22.0"
 git tag v1.22.0
-git switch dev && git merge --no-ff release/1.22.0
-git push origin main dev --tags
-git branch -d release/1.22.0
+git push origin main --tags
+git switch dev
 ```
 
 ## Correção urgente
 
+Para corrigir o que já está publicado, quando a `dev` tem coisas que ainda não podem sair:
+
 ```bash
 git switch main && git pull
-git switch -c hotfix/descricao
-# corrige, testa, bump de patch (1.22.1)
-git switch main && git merge --no-ff hotfix/descricao && git tag v1.22.1
-git switch dev && git merge --no-ff hotfix/descricao
-git push origin main dev --tags
+# corrige, testa, faz bump de patch (1.22.1)
+git commit -am "fix: ..."
+git tag v1.22.1
+git push origin main --tags
+git switch dev && git merge --no-ff main && git push origin dev
 ```
 
-## Antes de qualquer PR
+## Antes de enviar
 
-- `npm run build` passa (o CI roda o mesmo em todo PR para `dev` e `main`).
-- Mudou algo de tela? Teste com controle remoto numa TV real (foco, OK, Voltar).
-- Mudou o app Android? `npm run package:android` e instale na TV/celular.
+- `npm run build` passa. O CI roda o mesmo build a cada push na `dev` e na `main`.
+- Mudou algo de tela? Teste com controle remoto (foco, OK, Voltar).
+- Mudou o app Android? Rode `npm run package:android` e teste nos emuladores.
 - Nada de credenciais, `data/` ou `android/keystore/` no commit.
 
 ## Proteção no GitHub (recomendado)
 
-Em **Settings → Branches**, crie regras para `main` e `dev`:
-exigir PR antes do merge, exigir o check **CI / build** verde e bloquear force push.
+Em **Settings → Branches**, crie regras para `main` e `dev`: bloquear force push e exigir o check **CI / build** verde.

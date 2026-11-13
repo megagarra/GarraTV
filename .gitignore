@@ -32,6 +32,8 @@ desktop/staging/
 desktop/icon.png
 desktop/LICENSE
 dist/windows/
+# Microsoft Store screenshots generated for the listing.
+dist/store/
 
 # android packaging
 .android-pkg/
